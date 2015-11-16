@@ -1,7 +1,7 @@
 <launch>
 
 	<!--include file="$(find hostess_robot)/launch/people_detection.launch.xml" /-->
-	<node pkg="rviz" type="rviz" name="rviz" args="-d $(find hostess_robot)/launch/hostess_robot.rviz" />
+	<!--node pkg="rviz" type="rviz" name="rviz" args="-d $(find hostess_robot)/launch/hostess_robot.rviz" /-->
 	<include file="$(find openni_launch)/launch/openni.launch" />
 	<node pkg="openni_tracker" type="openni_tracker" name="openni_tracker" output="screen" />
 
