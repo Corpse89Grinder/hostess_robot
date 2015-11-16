@@ -1,0 +1,7 @@
+<launch>
+
+	<include file="$(find skeleton_tracker)/launch/tracker.launch" />
+	<include file="$(find hostess_tracker)/ros/launch/people_detection.xml" />
+	<node pkg="rviz" type="rviz" name="rviz" args="-d $(find hostess_tracker)/launch/hostess_tracker.rviz" />
+
+</launch>
