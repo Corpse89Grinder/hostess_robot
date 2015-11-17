@@ -1,0 +1,8 @@
+<!--	This launch file handles the Xtion drivers and perform the skeleton tracking locally. This file is meant to be launched on the robot.	-->
+
+<launch>
+
+	<include file="$(find hostess_remote)/launch/include/openni_drivers.launch.xml" />
+	<node pkg="hostess_skeleton_tracker" type="hostess_skeleton_tracker" name="hostess_skeleton_tracker" output="screen" />
+
+</launch>
