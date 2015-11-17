@@ -3,10 +3,12 @@
 
   <!-- "camera" should uniquely identify the device. All topics are pushed down
        into the "camera" namespace, and it is prepended to tf frame ids. -->
-  <arg name="camera" default="remote" />
+  <arg name="camera" default="robot" />
   <arg name="tf_prefix" default="" />
   <arg name="rgb_frame_id"   default="camera_rgb_optical_frame" />
   <arg name="depth_frame_id" default="camera_depth_optical_frame" />
+
+  <param name="$(arg camera)/rgb/image_raw/theora/quality" value="63" />
 
   <!-- device_id can have the following formats:
          "B00367707227042B": Use device with given serial number
@@ -36,7 +38,7 @@
        tree. Useful if you are playing back recorded raw data from a bag, or are
        supplying a more accurate tf tree from calibration. -->
   <arg name="load_driver" default="true" />
-  <arg name="publish_tf" default="true" />
+  <arg name="publish_tf" default="false" />
   <!-- Processing Modules -->
   <arg name="rgb_processing"                  default="false"/>
   <arg name="ir_processing"                   default="false"/>

@@ -1,19 +1,12 @@
 <!-- Entry point for using OpenNI2 devices -->
 <launch>
-  <!-- republishers -->
-  <node name="rgb_republisher" type="republish" pkg="image_transport" args="theora in:=/remote/rgb/image_raw out:=/camera/rgb/image_raw" />
-  <node name="depth_republisher" type="republish" pkg="image_transport" args="compressedDepth in:=/remote/depth/image_raw out:=/camera/depth/image_raw" />
-  <node name="rgb_info_republisher" type="relay" pkg="topic_tools" args="/remote/rgb/camera_info /camera/rgb/camera_info" />
-  <node name="depth_info_republisher" type="relay" pkg="topic_tools" args="/remote/depth/camera_info /camera/depth/camera_info" />
-  <!--node name="nodelet_manager_republisher" type="relay" pkg="topic_tools" args="/remote/remote_nodelet_manager/bond /camera/remote_nodelet_manager/bond" /-->
-  <!--node name="parameter_description_republisher" type="relay" pkg="topic_tools" args="/remote/driver/parameter_descriptions /camera/driver/parameter_descriptions" /-->
-  <!--node name="parameter_updates_republisher" type="relay" pkg="topic_tools" args="/remote/driver/parameter_updates /camera/driver/parameter_updates" /-->
-
+  
   <!-- "camera" should uniquely identify the device. All topics are pushed down
        into the "camera" namespace, and it is prepended to tf frame ids. -->
   <arg name="camera" default="camera" />
   <arg name="rgb_frame_id"   default="camera_rgb_optical_frame" />
   <arg name="depth_frame_id" default="camera_depth_optical_frame" />
+  <arg name="remote_camera" default="robot" />
 
   <!-- device_id can have the following formats:
          "#1"  : the first device found
@@ -65,6 +58,12 @@
 
   <!-- Push down all topics/nodelets into "camera" namespace -->
   <group ns="$(arg camera)">
+
+	<!-- republishers -->
+	<node name="rgb_republisher" type="republish" pkg="image_transport" args="theora in:=/$(arg remote_camera)/rgb/image_raw out:=/$(arg camera)/rgb/image_raw" />
+	<node name="depth_republisher" type="republish" pkg="image_transport" args="compressedDepth in:=/$(arg remote_camera)/depth/image_raw out:=/$(arg camera)/depth/image_raw" />
+	<node name="rgb_info_republisher" type="relay" pkg="topic_tools" args="/$(arg remote_camera)/rgb/camera_info /$(arg camera)/rgb/camera_info" />
+	<node name="depth_info_republisher" type="relay" pkg="topic_tools" args="/$(arg remote_camera)/depth/camera_info /$(arg camera)/depth/camera_info" />
   
 	  <!-- Start nodelet manager -->
 	  <arg name="manager" value="$(arg camera)_nodelet_manager" />

@@ -1,0 +1,9 @@
+<!--	This launch file handles the point cloud reconstruction and the face recognition software. This file is meant to be launched on a remote workstation. -->
+
+<launch>
+
+	<include file="$(find hostess_robot)/launch/remote/include/openni_processing.launch.xml" />
+	<include file="$(find hostess_robot)/launch/remote/include/people_detection.launch.xml" />
+	<node pkg="rviz" type="rviz" name="rviz" args="-d $(find hostess_robot)/launch/remote/include/hostess_robot.rviz" />
+
+</launch>
