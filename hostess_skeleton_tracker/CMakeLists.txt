@@ -30,3 +30,6 @@ target_link_libraries(hostess_skeleton_tracker ${catkin_LIBRARIES}
 
 install(TARGETS hostess_skeleton_tracker RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 install(FILES openni_tracker.xml DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+
+add_executable(twist_mediator src/twist_mediator.cpp)
+target_link_libraries(twist_mediator ${catkin_LIBRARIES})
