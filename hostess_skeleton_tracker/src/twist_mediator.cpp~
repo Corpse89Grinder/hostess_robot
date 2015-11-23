@@ -57,7 +57,7 @@ void identityCallback(cob_perception_msgs::DetectionArray msg)
 	{
 		tf::Transform transform;
 		transform.setOrigin(tf::Vector3(identities[i].pose.pose.position.x, identities[i].pose.pose.position.y, identities[i].pose.pose.position.z));
-		transform.setRotation(tf::Quaternion(0, 0, 0, 1));
+		transform.setRotation(tf::Quaternion(1, 1, 1, 1));
 		br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "camera_rgb_optical_frame", identities[i].label));
 
 		std::cout << "Mandato" << std::endl;
