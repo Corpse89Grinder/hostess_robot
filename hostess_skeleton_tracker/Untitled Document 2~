@@ -1,0 +1,70 @@
+rostopic pub /cob_people_detection/face_recognizer/face_recognitions cob_perception_msgs/DetectionArray "header: 
+  seq: 19534
+  stamp: 
+    secs: 1448297189
+    nsecs: 734560812
+  frame_id: camera_rgb_optical_frame
+detections: 
+  - 
+    header: 
+      seq: 19534
+      stamp: {secs: 1448297189, nsecs: 734560812}
+      frame_id: camera_rgb_optical_frame
+    label: Giuseppe
+    id: 0
+    detector: face
+    score: 0.0
+    mask: 
+      roi: {x: 63, y: 99, width: 139, height: 139}
+      mask: 
+        header: 
+          seq: 0
+          stamp: {secs: 0, nsecs: 0}
+          frame_id: ''
+        height: 0
+        width: 0
+        encoding: ''
+        is_bigendian: 0
+        step: 0
+        data: ''
+    pose: 
+      header: 
+        seq: 0
+        stamp: {secs: 0, nsecs: 0}
+        frame_id: ''
+      pose: 
+        position: {x: -0.226966679096, y: -0.0901971459389, z: 0.619000017643}
+        orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+    bounding_box_lwh: {x: 0.0, y: 0.0, z: 0.0}
+  - 
+    header: 
+      seq: 19534
+      stamp: {secs: 1448297189, nsecs: 734560812}
+      frame_id: camera_rgb_optical_frame
+    label: Antonio
+    id: 0
+    detector: face
+    score: 0.0
+    mask: 
+      roi: {x: 349, y: 142, width: 99, height: 99}
+      mask: 
+        header: 
+          seq: 0
+          stamp: {secs: 0, nsecs: 0}
+          frame_id: ''
+        height: 0
+        width: 0
+        encoding: ''
+        is_bigendian: 0
+        step: 0
+        data: ''
+    pose: 
+      header: 
+        seq: 0
+        stamp: {secs: 0, nsecs: 0}
+        frame_id: ''
+      pose: 
+        position: {x: 0.145486682653, y: -0.0898866727948, z: 0.973000049591}
+        orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+    bounding_box_lwh: {x: 0.0, y: 0.0, z: 0.0}"
+

@@ -8,6 +8,8 @@
 #include <XnCodecIDs.h>
 #include <XnCppWrapper.h>
 
+#include <openni2_camera/openni2_driver.h>
+
 #define MAX_USERS 15
 
 xn::Context        g_Context;
