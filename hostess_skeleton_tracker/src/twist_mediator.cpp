@@ -8,6 +8,7 @@
 #include <sstream>
 #include <map>
 #include <limits>
+#include <string>
 
 void userToTrackIdentityCallback(std_msgs::String);
 void userToTrackFaceCallback(cob_perception_msgs::DetectionArray);
