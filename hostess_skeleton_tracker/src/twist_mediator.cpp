@@ -87,7 +87,7 @@ int main(int argc, char** argv)
 
     			transforms.push_back(transform);
     		}
-    		catch(tf::TransformException ex)
+    		catch(tf::TransformException &ex)
     		{
     			continue;
     		}
@@ -186,7 +186,7 @@ void faceCallback(cob_perception_msgs::DetectionArray msg)
 
 					transforms.push_back(transform);
 				}
-				catch(tf::TransformException ex)
+				catch(tf::TransformException &ex)
 				{
 					continue;
 				}

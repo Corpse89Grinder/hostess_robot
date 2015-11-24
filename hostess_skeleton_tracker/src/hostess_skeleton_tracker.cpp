@@ -95,7 +95,7 @@ int main(int argc, char **argv)
 	ros::Rate r(30);
 
     ros::NodeHandle pnh("~");
-    std::string frame_id("camera_depth_optical_frame");
+    std::string frame_id("camera_depth_frame");
     pnh.getParam("camera_frame_id", frame_id);
 
 	while(nh.ok())
