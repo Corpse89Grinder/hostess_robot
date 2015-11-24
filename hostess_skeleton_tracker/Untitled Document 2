@@ -9,7 +9,7 @@ detections:
     header: 
       seq: 19534
       stamp: {secs: 1448297189, nsecs: 734560812}
-      frame_id: camera_rgb_optical_frame
+      frame_id: camera_depth_optical_frame
     label: Giuseppe
     id: 0
     detector: face

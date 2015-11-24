@@ -1,45 +1,36 @@
 #include <ros/ros.h>
-#include <std_msgs/String.h>
-#include <boost/bind.hpp>
-
-void toggleCallback(ros::NodeHandle&, const std_msgs::String::ConstPtr&);
-void stringCallback(const std_msgs::String::ConstPtr&);
-void initStringSubscriber(ros::NodeHandle&);
-
-ros::Subscriber stringSub;
+#include <tf/transform_listener.h>
+#include <tf/transform_broadcaster.h>
 
 int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "prova");
 	ros::NodeHandle nh;
 
+	ros::Rate rate(1.0);
 
-	ros::Subscriber toggleSub = nh.subscribe<std_msgs::String>("/toggle", 1, boost::bind(&toggleCallback, boost::ref(nh), _1));
-	initStringSubscriber(nh);
+	tf::TransformListener listener;
+	tf::TransformBroadcaster broadcaster;
 
-	ros::spin();
+	while(nh.ok())
+	{
+		rate.sleep();
+
+		tf::StampedTransform transform;
+
+		try
+		{
+			listener.lookupTransform("Giuseppe", "Antonio", ros::Time(0), transform);
+
+			transform.child_frame_id_ = "prova";
+
+			broadcaster.sendTransform(transform);
+		}
+		catch(tf::TransformException exc)
+		{
+			continue;
+		}
+	}
 
 	return EXIT_SUCCESS;
-}
-
-void toggleCallback(ros::NodeHandle& nh, const std_msgs::String::ConstPtr& msg)
-{
-	if(msg->data == "ciaon")
-	{
-		initStringSubscriber(nh);
-	}
-	else if(msg->data == "ciaoff")
-	{
-		stringSub.shutdown();
-	}
-}
-
-void stringCallback(const std_msgs::String::ConstPtr& msg)
-{
-	std::cout << msg->data << std::endl;
-}
-
-void initStringSubscriber(ros::NodeHandle& nh)
-{
-	stringSub = nh.subscribe<std_msgs::String>("/string", 1, stringCallback);
 }

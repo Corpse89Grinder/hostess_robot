@@ -66,5 +66,5 @@ detections:
       pose: 
         position: {x: 0.145486682653, y: -0.0898866727948, z: 0.973000049591}
         orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
-    bounding_box_lwh: {x: 0.0, y: 0.0, z: 0.0}"
+    bounding_box_lwh: {x: 0.0, y: 0.0, z: 0.0}" -r 1
 

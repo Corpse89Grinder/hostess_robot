@@ -1,0 +1,9 @@
+<!---->
+
+<launch>
+    <include file="$(find rgbd_launch)/launch/kinect_frames.launch">
+        <arg name="camera" value="camera" />
+    </include>
+    <node pkg="rviz" type="rviz" name="rviz" />
+    <node pkg="hostess_skeleton_tracker" type="twist_mediator" name="twist_mediator" output="screen" />
+</launch>

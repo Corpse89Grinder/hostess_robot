@@ -34,14 +34,12 @@ void XN_CALLBACK_TYPE UserPose_PoseDetected(xn::PoseDetectionCapability&, XnChar
 void publishTransform(XnUserID const&, XnSkeletonJoint const&, std::string const&, std::string const&);
 void publishTransforms(const std::string&);
 
-bool engaged = false;
-
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "openni_tracker");
     ros::NodeHandle nh;
 
-    std::string configFilename = ros::package::getPath("hostess_skeleton_tracker") + "/openni_tracker.xml";
+    std::string configFilename = ros::package::getPath("hostess_skeleton_tracker") + "/init/openni_tracker.xml";
     XnStatus nRetVal = g_Context.InitFromXmlFile(configFilename.c_str());
     CHECK_RC(nRetVal, "InitFromXml");
 
@@ -97,30 +95,16 @@ int main(int argc, char **argv)
 	ros::Rate r(30);
 
     ros::NodeHandle pnh("~");
-    std::string frame_id("camera_depth_frame");
+    std::string frame_id("camera_depth_optical_frame");
     pnh.getParam("camera_frame_id", frame_id);
 
-    while(nh.ok())
-    {
-		while(nh.ok())
-		{
-			g_Context.WaitAndUpdateAll();
-			publishTransforms(frame_id);
+	while(nh.ok())
+	{
+		g_Context.WaitAndUpdateAll();
+		publishTransforms(frame_id);
 
-			ros::spinOnce();
-
-			if(engaged)
-			{
-				break;
-			}
-
-			r.sleep();
-		}
-
-//Identità ricevuta, mi focalizzo solo sull'utente di cui ho bisogno
-
-
-    }
+		r.sleep();
+	}
 
 	g_Context.Shutdown();
 	return 0;
@@ -236,7 +220,7 @@ void publishTransforms(const std::string& frame_id)
         }
 
         publishTransform(user, XN_SKEL_HEAD,           frame_id, "head");
-        publishTransform(user, XN_SKEL_NECK,           frame_id, "neck");
+//      publishTransform(user, XN_SKEL_NECK,           frame_id, "neck");
         publishTransform(user, XN_SKEL_TORSO,          frame_id, "torso");
 
 //		publishTransform(user, XN_SKEL_LEFT_SHOULDER,  frame_id, "left_shoulder");
@@ -255,9 +239,4 @@ void publishTransforms(const std::string& frame_id)
 //		publishTransform(user, XN_SKEL_RIGHT_KNEE,     frame_id, "right_knee");
 //		publishTransform(user, XN_SKEL_RIGHT_FOOT,     frame_id, "right_foot");
     }
-}
-
-void identityCallback()
-{
-	engaged = true;
 }
