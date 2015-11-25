@@ -12,10 +12,9 @@
 
 void userToTrackIdentityCallback(std_msgs::String);
 void userToTrackFaceCallback(cob_perception_msgs::DetectionArray);
-void faceCallback(cob_perception_msgs::DetectionArray);
 
-std::string user_to_track;
-bool got_user = false;
+std::string user_to_track = "Unknown_1";
+bool got_user = true;
 bool auto_engage = false;
 
 std::string frame_id("camera_depth_optical_frame");
@@ -65,14 +64,8 @@ int main(int argc, char** argv)
 
     tf::TransformBroadcaster br;
 
-    ros::Subscriber faceSub = nh.subscribe(face_topic, 1, faceCallback);
-
     while(nh.ok())
     {
-    	ros::spinOnce();
-
-    	rate.sleep();
-
     	tf::StampedTransform transform;
 
     	std::vector<tf::StampedTransform> transforms;
@@ -80,7 +73,7 @@ int main(int argc, char** argv)
     	for(int i = 1; i <= 15; i++)
     	{
     		std::ostringstream oss;
-    		oss << "recognition_head_" << i;
+    		oss << "head_" << i;
 
     		try
     		{
@@ -110,9 +103,11 @@ int main(int argc, char** argv)
 
     	if(!transforms.empty())
     	{
-    		std::cout << "Scheletro più vicino: " << index << std::endl;
+    		std::cout << "Scheletro più vicino: " << index << ", distanza: " << min << std::endl;
     		//TODO parsing di index per trackare il torso giusto
     	}
+
+    	rate.sleep();
     }
 }
 
@@ -142,63 +137,4 @@ void userToTrackFaceCallback(cob_perception_msgs::DetectionArray msg)
 			got_user = true;
 		}
 	}
-}
-
-void faceCallback(cob_perception_msgs::DetectionArray msg)
-{
-	static tf::TransformBroadcaster br;
-	static tf::TransformListener listener;
-
-	std::vector<cob_perception_msgs::Detection> identities = msg.detections;
-	ros::Time rcv = msg.header.stamp;
-	ros::Time now = ros::Time::now();
-
-	std::vector<tf::StampedTransform> transforms;
-
-	for(int i = 0; i < identities.size(); i++)
-	{
-		if(identities[i].detector == "face" && identities[i].label == user_to_track)
-		{
-			tf::StampedTransform transform;
-
-			transform.setOrigin(tf::Vector3(identities[i].pose.pose.position.x, identities[i].pose.pose.position.y, identities[i].pose.pose.position.z));
-			transform.setRotation(tf::Quaternion(identities[i].pose.pose.orientation.x, identities[i].pose.pose.orientation.y, identities[i].pose.pose.orientation.z, identities[i].pose.pose.orientation.w));
-
-			transform.frame_id_ = identities[i].header.frame_id;
-			transform.child_frame_id_ = user_to_track;
-			transform.stamp_ = now;
-
-			transforms.push_back(transform);
-
-			for(int j = 1; j <= 15; j++)
-			{
-				std::ostringstream oss;
-				oss << "head_" << j;
-
-				try
-				{
-					listener.lookupTransform(frame_id, oss.str(), rcv, transform);
-
-					oss.str("");
-					oss << "recognition_head_" << j;
-
-					transform.child_frame_id_ = oss.str();
-					transform.stamp_ = now;
-
-					transforms.push_back(transform);
-				}
-				catch(tf::TransformException &ex)
-				{
-					continue;
-				}
-			}
-
-			for(int j = 0; j < transforms.size(); j++)
-			{
-				br.sendTransform(transforms[j]);
-			}
-		}
-	}
-
-	return;
 }

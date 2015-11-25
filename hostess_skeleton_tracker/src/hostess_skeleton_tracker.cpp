@@ -10,6 +10,8 @@
 
 #define MAX_USERS 15
 
+std::string userCalibrationFileName;
+
 xn::Context        g_Context;
 xn::DepthGenerator g_DepthGenerator;
 xn::UserGenerator  g_UserGenerator;
@@ -38,6 +40,7 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
 
     std::string configFilename = ros::package::getPath("hostess_skeleton_tracker") + "/init/openni_tracker.xml";
+    userCalibrationFileName = ros::package::getPath("hostess_skeleton_tracker") + "/init/GenericUserCalibration.bin";
     XnStatus nRetVal = g_Context.InitFromXmlFile(configFilename.c_str());
     CHECK_RC(nRetVal, "InitFromXml");
 
@@ -114,7 +117,9 @@ void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator& generator, XnUserID nId, v
 
 	if (g_bNeedPose)
 	{
-		g_UserGenerator.GetPoseDetectionCap().StartPoseDetection(g_strPose, nId);
+		g_UserGenerator.GetSkeletonCap().LoadCalibrationDataFromFile(nId, userCalibrationFileName.c_str());
+		g_UserGenerator.GetSkeletonCap().StartTracking(nId);
+		//g_UserGenerator.GetPoseDetectionCap().StartPoseDetection(g_strPose, nId);
 	}
 	else
 	{
