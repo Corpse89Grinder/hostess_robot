@@ -34,9 +34,6 @@ target_link_libraries(openni_tracker ${catkin_LIBRARIES}
 install(TARGETS openni_tracker RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 install(FILES openni_tracker.xml DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 
-add_executable(twist_mediator src/twist_mediator.cpp)
-target_link_libraries(twist_mediator ${catkin_LIBRARIES})
-
 add_executable(hostess_skeleton_tracker src/hostess_skeleton_tracker.cpp)
 
 add_dependencies(hostess_skeleton_tracker geometry_msgs_gencpp)
@@ -46,6 +43,9 @@ target_link_libraries(hostess_skeleton_tracker
 	${OpenNI_LIBRARIES}
 	${orocos_kdl_LIBRARIES}
 )
+
+add_executable(twist_mediator src/twist_mediator.cpp)
+target_link_libraries(twist_mediator ${catkin_LIBRARIES})
 				     
-add_executable(prova src/prova.cpp)
-target_link_libraries(prova ${catkin_LIBRARIES})
+add_executable(identity_setter src/identity_setter.cpp)
+target_link_libraries(identity_setter ${catkin_LIBRARIES})

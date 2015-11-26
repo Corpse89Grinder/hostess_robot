@@ -1,140 +1,134 @@
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
-#include <tf/transform_broadcaster.h>
-#include <geometry_msgs/Twist.h>
-#include <std_msgs/String.h>
-#include <cob_perception_msgs/DetectionArray.h>
-#include <cob_perception_msgs/Detection.h>
 #include <sstream>
-#include <map>
 #include <limits>
-#include <string>
 
-void userToTrackIdentityCallback(std_msgs::String);
-void userToTrackFaceCallback(cob_perception_msgs::DetectionArray);
+//Maximum distance from skeleton head and face recognition points in space
+#define DISTANCE_THRESHOLD 15
 
-std::string user_to_track = "Unknown_1";
-bool got_user = true;
-bool auto_engage = false;
+void lookForEveryHeadTransform(tf::TransformListener&, std::vector<tf::StampedTransform>&, std::string);
+bool findClosestHeadToFace(std::vector<tf::StampedTransform>&, std::string);
+bool lookForSpecificBodyTransform(tf::TransformListener&, std::string, tf::StampedTransform&);
 
 std::string frame_id("camera_depth_optical_frame");
 
-ros::Time received;
-
-std::map<std::string, int> faces_counter;
-
 int main(int argc, char** argv)
 {
-	ros::init(argc, argv, "ar_tracker");
+	ros::init(argc, argv, "twist_mediator");
 
 	ros::NodeHandle nh;
+	std::string user_to_track;
 
-	std::string face_topic("/cob_people_detection/face_recognizer/face_recognitions");
-	std::string identity_topic("/hostess_skeleton_tracker/user_to_track");
-
-	nh.getParam("camera_frame_id", frame_id);
-	nh.getParam("face_topic", face_topic);
-	nh.getParam("identity_topic", identity_topic);
-
-	ros::Subscriber identitySub;
-
-    if(!auto_engage)
+    while(!ros::param::get("user_to_track", user_to_track))
     {
-    	identitySub = nh.subscribe(identity_topic, 1, userToTrackIdentityCallback);
+    	ros::Duration(1).sleep();
     }
-    else
-    {
-    	identitySub = nh.subscribe(face_topic, 1, userToTrackFaceCallback);
-    }
-
-    ros::Rate rate(10.0);
-
-    while(!got_user)
-    {
-    	ros::spinOnce();
-
-    	rate.sleep();
-    }
-
-    identitySub.shutdown();
-
-    std::cout << "Tracking user: " << user_to_track << std::endl;
 
     tf::TransformListener listener;
 
-    tf::TransformBroadcaster br;
-
     while(nh.ok())
     {
-    	tf::StampedTransform transform;
+    	std::string body_to_track_frame;
 
-    	std::vector<tf::StampedTransform> transforms;
-
-    	for(int i = 1; i <= 15; i++)
-    	{
-    		std::ostringstream oss;
-    		oss << "head_" << i;
-
-    		try
-    		{
-    			listener.lookupTransform(user_to_track, oss.str(), ros::Time(0), transform);
-
-    			transforms.push_back(transform);
-    		}
-    		catch(tf::TransformException &ex)
-    		{
-    			continue;
-    		}
-    	}
-
-    	double min = std::numeric_limits<double>::max();
-    	std::string index;
-
-    	for(int i = 0; i < transforms.size(); i++)
-    	{
-    		double current = std::sqrt(std::pow(transforms[i].getOrigin().getX(), 2) + std::pow(transforms[i].getOrigin().getY(), 2) + std::pow(transforms[i].getOrigin().getZ(), 2));
-
-    		if(current < min)
-    		{
-    			min = current;
-    			index = transforms[i].child_frame_id_;
-    		}
-    	}
-
-    	if(!transforms.empty())
-    	{
-    		std::cout << "Scheletro più vicino: " << index << ", distanza: " << min << std::endl;
-    		//TODO parsing di index per trackare il torso giusto
-    	}
-
-    	rate.sleep();
-    }
-}
-
-void userToTrackIdentityCallback(std_msgs::String msg)
-{
-	user_to_track = msg.data;
-	got_user = true;
-}
-
-void userToTrackFaceCallback(cob_perception_msgs::DetectionArray msg)
-{
-	std::vector<cob_perception_msgs::Detection> identities = msg.detections;
-
-	for(int i = 0; i < identities.size(); i++)
-	{
-		if(identities[i].detector == "face" && identities[i].label != "Unknown")
+		while(true)							//Search continuously for a skeleton head very close to the designated user face.
 		{
-			faces_counter[identities[i].label]++;
+			std::vector<tf::StampedTransform> transforms;
+
+			lookForEveryHeadTransform(listener, transforms, user_to_track);
+
+			if(findClosestHeadToFace(transforms, body_to_track_frame))
+			{
+				break;
+			}
+
+			ros::Rate(30).sleep();
+		}
+
+		while(true)
+		{
+			tf::StampedTransform transform;
+
+			if(lookForSpecificBodyTransform(listener, body_to_track_frame, transform))
+			{
+				double distance = std::sqrt(std::pow(transform.getOrigin().getX(), 2) + std::pow(transform.getOrigin().getY(), 2) + std::pow(transform.getOrigin().getZ(), 2));
+
+				//TODO Ho la distanza, in base ad essa restituisco la percentuale di velocità del robot.
+			}
+			else
+			{
+				//TODO Esco al primo frame perso? O inserisco un conto? Da definire in base al comportamento del tracker.
+			}
+
+			ros::Rate(30).sleep();
+		}
+    }
+
+    ros::shutdown();
+
+    return EXIT_SUCCESS;
+}
+
+void lookForEveryHeadTransform(tf::TransformListener& listener, std::vector<tf::StampedTransform>& transforms, std::string user_to_track)
+{
+	tf::StampedTransform transform;
+
+	for(int i = 1; i <= 15; i++)
+	{
+		std::ostringstream oss;
+		oss << "head_" << i;
+
+		try
+		{
+			//TODO sistemare i tempi, posso chiedere 2 tempi diversi per i 2 frames da comparare (ultima face e tf passate).
+			listener.lookupTransform(user_to_track, oss.str(), ros::Time(0), transform);
+
+			transforms.push_back(transform);
+		}
+		catch(tf::TransformException &ex)
+		{
+			continue;
+		}
+	}
+}
+
+bool findClosestHeadToFace(std::vector<tf::StampedTransform>& transforms, std::string& body_to_track_frame)
+{
+	double min = std::numeric_limits<double>::max();
+	std::string index;
+
+	for(int i = 0; i < transforms.size(); i++)
+	{
+		double current = std::sqrt(std::pow(transforms[i].getOrigin().getX(), 2) + std::pow(transforms[i].getOrigin().getY(), 2) + std::pow(transforms[i].getOrigin().getZ(), 2));
+
+		if(current < min)
+		{
+			min = current;
+			index = transforms[i].child_frame_id_;
 		}
 	}
 
-	for(std::map<std::string, int>::iterator iter = faces_counter.begin(); iter != faces_counter.end(); ++iter)
+	if(min < DISTANCE_THRESHOLD)	//Right skeleton found.
 	{
-		if(iter->second >= 100)
-		{
-			user_to_track = iter->first;
-			got_user = true;
-		}
+		std::ostringstream oss;
+		oss << "torso_" << index;
+		body_to_track_frame = oss.str();
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool lookForSpecificBodyTransform(tf::TransformListener& listener, std::string body_to_track_frame, tf::StampedTransform& transform)
+{
+	try
+	{
+		listener.lookupTransform(frame_id, body_to_track_frame, ros::Time::now(), transform);
+		return true;
+	}
+	catch(tf::TransformException &ex)
+	{
+		return false;
 	}
 }
