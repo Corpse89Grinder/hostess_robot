@@ -12,15 +12,15 @@ int main(int argc, char** argv)
 
 	ros::NodeHandle nh;
 
-    	tf::TransformListener listener;
+    tf::TransformListener listener;
 
-    	ros::Publisher pub = nh.advertise<geometry_msgs::Twist>("/kobra/command_vel", 1);
+    ros::Publisher pub = nh.advertise<geometry_msgs::Twist>("/kobra/command_vel", 1);
 
 	ros::Time last_stamp = ros::Time::now();
 
-    	while(nh.ok())
-    	{
-    		geometry_msgs::Twist twist;
+    while(nh.ok())
+    {
+    	geometry_msgs::Twist twist;
 
 		twist.linear.x = twist.angular.z = 0;
 
@@ -38,12 +38,12 @@ int main(int argc, char** argv)
 
 				double distance = std::sqrt(std::pow(transform.getOrigin().getX(), 2) + std::pow(transform.getOrigin().getY(), 2) + std::pow(transform.getOrigin().getZ(), 2));
 
-				if(distance < 0.9)
+				if(distance < 1.35)
 				{
 					//Mi allontano
 					twist.linear.x = 0.5;
 				}
-				else if(distance > 1.1)
+				else if(distance > 1.65)
 				{
 					//Mi avvicino
 					twist.linear.x = -0.5;
@@ -55,9 +55,9 @@ int main(int argc, char** argv)
 			
 		}
 
-	    	pub.publish(twist);
+	   	pub.publish(twist);
 
-	    	ros::Rate(30).sleep();
+	   	ros::Rate(30).sleep();
 	}
 
 	ros::shutdown();

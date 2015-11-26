@@ -33,6 +33,7 @@ void XN_CALLBACK_TYPE UserCalibration_CalibrationEnd(xn::SkeletonCapability&, Xn
 void XN_CALLBACK_TYPE UserPose_PoseDetected(xn::PoseDetectionCapability&, XnChar const*, XnUserID, void*);
 void publishTransform(XnUserID const&, XnSkeletonJoint const&, std::string const&, std::string const&);
 void publishTransforms(const std::string&);
+void publishCenterOfMass(const std::string&);
 
 int main(int argc, char **argv)
 {
@@ -65,6 +66,8 @@ int main(int argc, char **argv)
 		ROS_INFO("Supplied user generator doesn't support skeleton");
 		return 1;
 	}
+
+	g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_UPPER);
 
     XnCallbackHandle hUserCallbacks;
 	g_UserGenerator.RegisterUserCallbacks(User_NewUser, User_LostUser, NULL, hUserCallbacks);
@@ -102,7 +105,9 @@ int main(int argc, char **argv)
 	while(nh.ok())
 	{
 		g_Context.WaitAndUpdateAll();
-		publishTransforms(frame_id);
+
+		publishCenterOfMass(frame_id);
+		//publishTransforms(frame_id);
 
 		r.sleep();
 	}
@@ -117,8 +122,6 @@ void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator& generator, XnUserID nId, v
 
 	if (g_bNeedPose)
 	{
-		//g_UserGenerator.GetSkeletonCap().LoadCalibrationDataFromFile(nId, userCalibrationFileName.c_str());
-		//g_UserGenerator.GetSkeletonCap().StartTracking(nId);
 		g_UserGenerator.GetPoseDetectionCap().StartPoseDetection(g_strPose, nId);
 	}
 	else
@@ -207,9 +210,55 @@ void publishTransform(XnUserID const& user, XnSkeletonJoint const& joint, std::s
     br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), frame_id, child_frame_no));
 }
 
+void publishCenterOfMass(const std::string& frame_id)
+{
+	static tf::TransformBroadcaster br;
+	ros::Time now = ros::Time::now();
+
+	XnUInt16 users_count = MAX_USERS;
+    XnUserID users[MAX_USERS];
+
+    g_UserGenerator.GetUsers(users, users_count);
+
+    for(int i = 0; i < users_count; ++i)
+    {
+        XnUserID user = users[i];
+
+        XnPoint3D center_of_mass;
+        XnStatus status = g_UserGenerator.GetCoM(user, center_of_mass);
+
+        if(status == FALSE)
+        {
+        	continue;
+        }
+
+        std::ostringstream child_frame_id;
+        child_frame_id << "center_of_mass_" << user;
+
+        tf::Transform transform;
+        transform.setOrigin(tf::Vector3(center_of_mass.X, center_of_mass.Y, center_of_mass.Z));
+        transform.setRotation(tf::Quaternion(0, 0, 0, 1));
+
+        tf::Transform change_frame;
+		change_frame.setOrigin(tf::Vector3(0, 0, 0));
+
+		tf::Quaternion frame_rotation;
+		frame_rotation.setEulerZYX(1.5708, 0, 1.5708);
+		change_frame.setRotation(frame_rotation);
+
+		transform = change_frame * transform;
+
+        br.sendTransform(tf::StampedTransform(transform, now, frame_id, child_frame_id.str()));
+    }
+
+    return;
+}
+
 void publishTransforms(const std::string& frame_id)
 {
-	XnUInt16 users_count = MAX_USERS;
+    ros::Time now = ros::Time::now();
+
+    XnUInt16 users_count = MAX_USERS;
     XnUserID users[MAX_USERS];
 
     g_UserGenerator.GetUsers(users, users_count);
@@ -226,7 +275,6 @@ void publishTransforms(const std::string& frame_id)
         publishTransform(user, XN_SKEL_HEAD,           frame_id, "head");
 //      publishTransform(user, XN_SKEL_NECK,           frame_id, "neck");
         publishTransform(user, XN_SKEL_TORSO,          frame_id, "torso");
-
 //		publishTransform(user, XN_SKEL_LEFT_SHOULDER,  frame_id, "left_shoulder");
 //		publishTransform(user, XN_SKEL_LEFT_ELBOW,     frame_id, "left_elbow");
 //		publishTransform(user, XN_SKEL_LEFT_HAND,      frame_id, "left_hand");
@@ -242,5 +290,5 @@ void publishTransforms(const std::string& frame_id)
 //		publishTransform(user, XN_SKEL_RIGHT_HIP,      frame_id, "right_hip");
 //		publishTransform(user, XN_SKEL_RIGHT_KNEE,     frame_id, "right_knee");
 //		publishTransform(user, XN_SKEL_RIGHT_FOOT,     frame_id, "right_foot");
-    }
+  }
 }
