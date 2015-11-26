@@ -8,7 +8,7 @@
 #include <XnCodecIDs.h>
 #include <XnCppWrapper.h>
 
-#define MAX_USERS 1
+#define MAX_USERS 15
 
 std::string userCalibrationFileName;
 
