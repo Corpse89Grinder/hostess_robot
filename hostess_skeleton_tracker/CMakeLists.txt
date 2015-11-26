@@ -49,3 +49,6 @@ target_link_libraries(twist_mediator ${catkin_LIBRARIES})
 				     
 add_executable(identity_setter src/identity_setter.cpp)
 target_link_libraries(identity_setter ${catkin_LIBRARIES})
+
+add_executable(follow_me src/follow_me.cpp)
+target_link_libraries(follow_me ${catkin_LIBRARIES})

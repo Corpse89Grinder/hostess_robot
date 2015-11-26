@@ -10,7 +10,7 @@ void lookForEveryHeadTransform(tf::TransformListener&, std::vector<tf::StampedTr
 bool findClosestHeadToFace(std::vector<tf::StampedTransform>&, std::string&);
 bool lookForSpecificBodyTransform(tf::TransformListener&, std::string, tf::StampedTransform&);
 
-std::string frame_id("camera_depth_optical_frame");
+std::string frame_id("camera_depth_frame");
 
 int main(int argc, char** argv)
 {
@@ -70,8 +70,6 @@ int main(int argc, char** argv)
 
 void lookForEveryHeadTransform(tf::TransformListener& listener, std::vector<tf::StampedTransform>& transforms, std::string user_to_track)
 {
-	tf::StampedTransform transform;
-
 	for(int i = 1; i <= 15; i++)
 	{
 		std::ostringstream oss;
@@ -79,6 +77,8 @@ void lookForEveryHeadTransform(tf::TransformListener& listener, std::vector<tf::
 
 		try
 		{
+			tf::StampedTransform transform;
+
 			//TODO sistemare i tempi, posso chiedere 2 tempi diversi per i 2 frames da comparare (ultima face e tf passate).
 			listener.lookupTransform(user_to_track, oss.str(), ros::Time(0), transform);
 
