@@ -7,7 +7,7 @@
 #define DISTANCE_THRESHOLD 15
 
 void lookForEveryHeadTransform(tf::TransformListener&, std::vector<tf::StampedTransform>&, std::string);
-bool findClosestHeadToFace(std::vector<tf::StampedTransform>&, std::string);
+bool findClosestHeadToFace(std::vector<tf::StampedTransform>&, std::string&);
 bool lookForSpecificBodyTransform(tf::TransformListener&, std::string, tf::StampedTransform&);
 
 std::string frame_id("camera_depth_optical_frame");
