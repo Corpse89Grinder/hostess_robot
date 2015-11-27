@@ -68,6 +68,7 @@ int main(int argc, char **argv)
 	}
 
 	g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_UPPER);
+	g_UserGenerator.GetSkeletonCap().SetSmoothing(0.0);
 
     XnCallbackHandle hUserCallbacks;
 	g_UserGenerator.RegisterUserCallbacks(User_NewUser, User_LostUser, NULL, hUserCallbacks);
