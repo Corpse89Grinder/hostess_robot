@@ -106,8 +106,8 @@ int main(int argc, char **argv)
 	{
 		g_Context.WaitAndUpdateAll();
 
-		publishCenterOfMass(frame_id);
-		//publishTransforms(frame_id);
+		//publishCenterOfMass(frame_id);
+		publishTransforms(frame_id);
 
 		r.sleep();
 	}
