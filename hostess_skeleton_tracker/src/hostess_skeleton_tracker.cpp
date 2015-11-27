@@ -68,7 +68,6 @@ int main(int argc, char **argv)
 	}
 
 	g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_UPPER);
-	g_UserGenerator.GetSkeletonCap().SetSmoothing(0.0);
 
     XnCallbackHandle hUserCallbacks;
 	g_UserGenerator.RegisterUserCallbacks(User_NewUser, User_LostUser, NULL, hUserCallbacks);
@@ -208,7 +207,7 @@ void publishTransform(XnUserID const& user, XnSkeletonJoint const& joint, std::s
 
     transform = change_frame * transform;
 
-    br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), frame_id, child_frame_no));
+    br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), frame_id, child_frame_id));
 }
 
 void publishCenterOfMass(const std::string& frame_id)

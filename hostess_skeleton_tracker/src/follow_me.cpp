@@ -4,7 +4,7 @@
 #include <geometry_msgs/Twist.h>
 
 std::string frame_id("camera_depth_frame");
-std::string child_frame_id("torso_1");
+std::string child_frame_id("torso");
 
 int main(int argc, char** argv)
 {
@@ -47,6 +47,17 @@ int main(int argc, char** argv)
 				{
 					//Mi avvicino
 					twist.linear.x = -0.5;
+				}
+
+				if(transform.getOrigin().getY() > 0.1)
+				{
+					//Giro a sinistra
+					twist.angular.z = 0.5;
+				}
+				else if(transform.getOrigin().getY() < -0.1)
+				{
+					//Giro a destra
+					twist.angular.z = -0.5;
 				}
 			}
 		}
