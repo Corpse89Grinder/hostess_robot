@@ -1,0 +1,41 @@
+{% extends "bootstrap/base.html" %}
+{% block title %}Flasky{% endblock %}
+
+
+{% import "bootstrap/wtf.html" as wtf %}
+
+
+
+{% block body %}
+
+<div class="container">
+	<div class="page-header"> <h1>Utenti Registrati</h1>
+</div>
+<div class="row">
+	<table class="table table-hover">
+    <thead>
+      <tr>
+        <th>Firstname</th>
+        <th>Lastname</th>
+        <th>Email</th>
+		<th>Pin</th>
+		<th>Goal</th>
+      </tr>
+    </thead>
+    <tbody>
+    	{% for user in users %}
+      <tr>
+        <td>{{ user.name }}</td>
+        <td>{{ user.surname }}</td>
+        <td>{{ user.email }}</td>
+        <td>{{ user.pin }}</td>
+        <td>{{ user.goal.label }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+</div>
+</div>
+
+{% endblock %}
