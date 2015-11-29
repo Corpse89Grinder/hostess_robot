@@ -7,6 +7,7 @@ from wtforms.validators import Required
 from flask_bootstrap import Bootstrap
 from flask.ext.sqlalchemy import SQLAlchemy
 import os, sys
+from flask_wtf import form
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
@@ -16,7 +17,7 @@ from flask.ext.migrate import Migrate, MigrateCommand
 script = sys.argv[0]
 command = sys.argv[1]
 
-sys.argv = script, command
+sys.argv = script, command, '-d'
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'hard to guess string'
@@ -27,6 +28,11 @@ Bootstrap(app)
 manager = Manager(app)
 migrate = Migrate(app, db)
 manager.add_command('db', MigrateCommand)
+
+class IndexAction(Form):
+    add_new_user = SubmitField('Aggiungi nuovo utente')
+    add_new_goal = SubmitField('Aggiungi nuovo goal')
+    
 
 class RegistrationForm(Form):
     name = StringField('Nome')
@@ -106,7 +112,8 @@ def register():
         user = User(name=name, surname=surname, email=mail, goal=Goal.query.filter_by(id=goal_id).first(), pin=pin)
         db.session.add(user)
         return redirect(url_for('.users'))
-    return render_template('register.html', form=form)
+    #return render_template('register.html', form=form)
+    return render_template('user_registration.html', form=form)
 
 
 @app.route('/checkin', methods=['GET', 'POST'])
@@ -119,8 +126,19 @@ def checkin():
     return render_template('register.html', form=form)
 
 @app.route('/')
-def hello_world():
-    return render_template('image.html')
+def root():
+    return redirect(url_for('.index'))
+
+@app.route('/index', methods=['GET', 'POST'])
+def index():
+    form = IndexAction(request.form)
+    if request.method == 'POST':
+        if 'add_new_user' in request.form:
+            return redirect(url_for('.register'))
+        elif 'add_new_goal' in request.form:
+            return redirect(url_for('.new_goal'))
+    return render_template('index.html', form=form)
+
 
 if __name__ == '__main__':
     manager.run()	

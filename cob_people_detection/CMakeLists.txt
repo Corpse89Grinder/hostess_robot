@@ -384,3 +384,17 @@ install(DIRECTORY ros/launch
 install(FILES nodelet_plugins.xml
 	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
+
+
+
+
+
+add_executable(people_detection_training_client
+  ros/src/people_detection_training_client.cpp
+)
+target_link_libraries(people_detection_training_client
+  ${catkin_LIBRARIES}
+)
+
+set_target_properties(people_detection_training_client PROPERTIES COMPILE_FLAGS -D__LINUX__)
+add_dependencies(people_detection_training_client ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
