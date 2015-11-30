@@ -3,7 +3,6 @@
 #include <tf/transform_broadcaster.h>
 #include <kdl/frames.hpp>
 #include <string>
-
 #include <XnOpenNI.h>
 #include <XnCodecIDs.h>
 #include <XnCppWrapper.h>
@@ -28,6 +27,8 @@ XnChar g_strPose[20] = "";
 
 void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator&, XnUserID, void*);
 void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator&, XnUserID, void*);
+void XN_CALLBACK_TYPE User_ExitFromScene(xn::UserGenerator&, XnUserID, void*);
+void XN_CALLBACK_TYPE User_BackIntoScene(xn::UserGenerator&, XnUserID, void*);
 void XN_CALLBACK_TYPE UserCalibration_CalibrationStart(xn::SkeletonCapability&, XnUserID, void*);
 void XN_CALLBACK_TYPE UserCalibration_CalibrationEnd(xn::SkeletonCapability&, XnUserID, XnBool, void*);
 void XN_CALLBACK_TYPE UserPose_PoseDetected(xn::PoseDetectionCapability&, XnChar const*, XnUserID, void*);
@@ -71,6 +72,8 @@ int main(int argc, char **argv)
 
     XnCallbackHandle hUserCallbacks;
 	g_UserGenerator.RegisterUserCallbacks(User_NewUser, User_LostUser, NULL, hUserCallbacks);
+	g_UserGenerator.RegisterToUserExit(User_ExitFromScene, NULL ,hUserCallbacks);
+	g_UserGenerator.RegisterToUserReEnter(User_BackIntoScene, NULL ,hUserCallbacks);
 
 	XnCallbackHandle hCalibrationCallbacks;
 	g_UserGenerator.GetSkeletonCap().RegisterCalibrationCallbacks(UserCalibration_CalibrationStart, UserCalibration_CalibrationEnd, NULL, hCalibrationCallbacks);
@@ -96,8 +99,6 @@ int main(int argc, char **argv)
 	nRetVal = g_Context.StartGeneratingAll();
 	CHECK_RC(nRetVal, "StartGenerating");
 
-	ros::Rate r(30);
-
     ros::NodeHandle pnh("~");
     std::string frame_id("camera_depth_frame");
     pnh.getParam("camera_frame_id", frame_id);
@@ -106,10 +107,10 @@ int main(int argc, char **argv)
 	{
 		g_Context.WaitAndUpdateAll();
 
-		//publishCenterOfMass(frame_id);
 		publishTransforms(frame_id);
+		publishCenterOfMass(frame_id);
 
-		r.sleep();
+		ros::Rate(30).sleep();
 	}
 
 	g_Context.Shutdown();
@@ -133,7 +134,18 @@ void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator& generator, XnUserID nId, v
 void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
 {
 	ROS_INFO("Lost user %d", nId);
+}
+
+void XN_CALLBACK_TYPE User_ExitFromScene(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
+{
+	ROS_INFO("User %d out of scene", nId);
+
 	//g_UserGenerator.GetSkeletonCap().StopTracking(nId);
+}
+
+void XN_CALLBACK_TYPE User_BackIntoScene(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
+{
+	ROS_INFO("User %d back into scene", nId);
 }
 
 void XN_CALLBACK_TYPE UserCalibration_CalibrationStart(xn::SkeletonCapability& capability, XnUserID nId, void* pCookie)
@@ -210,50 +222,6 @@ void publishTransform(XnUserID const& user, XnSkeletonJoint const& joint, std::s
     br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), frame_id, child_frame_id));
 }
 
-void publishCenterOfMass(const std::string& frame_id)
-{
-	static tf::TransformBroadcaster br;
-	ros::Time now = ros::Time::now();
-
-	XnUInt16 users_count = MAX_USERS;
-    XnUserID users[MAX_USERS];
-
-    g_UserGenerator.GetUsers(users, users_count);
-
-    for(int i = 0; i < users_count; ++i)
-    {
-        XnUserID user = users[i];
-
-        XnPoint3D center_of_mass;
-        XnStatus status = g_UserGenerator.GetCoM(user, center_of_mass);
-
-        if(status == FALSE)
-        {
-        	continue;
-        }
-
-        std::ostringstream child_frame_id;
-        child_frame_id << "center_of_mass_" << user;
-
-        tf::Transform transform;
-        transform.setOrigin(tf::Vector3(center_of_mass.X, center_of_mass.Y, center_of_mass.Z));
-        transform.setRotation(tf::Quaternion(0, 0, 0, 1));
-
-        tf::Transform change_frame;
-		change_frame.setOrigin(tf::Vector3(0, 0, 0));
-
-		tf::Quaternion frame_rotation;
-		frame_rotation.setEulerZYX(1.5708, 0, 1.5708);
-		change_frame.setRotation(frame_rotation);
-
-		transform = change_frame * transform;
-
-        br.sendTransform(tf::StampedTransform(transform, now, frame_id, child_frame_id.str()));
-    }
-
-    return;
-}
-
 void publishTransforms(const std::string& frame_id)
 {
     ros::Time now = ros::Time::now();
@@ -291,4 +259,48 @@ void publishTransforms(const std::string& frame_id)
 //		publishTransform(user, XN_SKEL_RIGHT_KNEE,     frame_id, "right_knee");
 //		publishTransform(user, XN_SKEL_RIGHT_FOOT,     frame_id, "right_foot");
   }
+}
+
+void publishCenterOfMass(const std::string& frame_id)
+{
+	static tf::TransformBroadcaster br;
+	ros::Time now = ros::Time::now();
+
+	XnUInt16 users_count = MAX_USERS;
+    XnUserID users[MAX_USERS];
+
+    g_UserGenerator.GetUsers(users, users_count);
+
+    for(int i = 0; i < users_count; ++i)
+    {
+        XnUserID user = users[i];
+
+        XnPoint3D center_of_mass;
+        XnStatus status = g_UserGenerator.GetCoM(user, center_of_mass);
+
+        if(status != XN_STATUS_OK)
+        {
+        	continue;
+        }
+
+        std::ostringstream child_frame_id;
+        child_frame_id << "center_of_mass_" << user;
+
+        tf::Transform transform;
+        transform.setOrigin(tf::Vector3(center_of_mass.X, center_of_mass.Y, center_of_mass.Z));
+        transform.setRotation(tf::Quaternion(0, 0, 0, 1));
+
+        tf::Transform change_frame;
+		change_frame.setOrigin(tf::Vector3(0, 0, 0));
+
+		tf::Quaternion frame_rotation;
+		frame_rotation.setEulerZYX(1.5708, 0, 1.5708);
+		change_frame.setRotation(frame_rotation);
+
+		transform = change_frame * transform;
+
+        br.sendTransform(tf::StampedTransform(transform, now, frame_id, child_frame_id.str()));
+    }
+
+    return;
 }

@@ -28,8 +28,6 @@ int main(int argc, char** argv)
 		{
 			tf::StampedTransform transform;
 
-			//TODO sistemare i tempi, posso chiedere 2 tempi diversi per i 2 frames da comparare (ultima face e tf passate).
-
 			listener.lookupTransform(frame_id, child_frame_id, ros::Time(0), transform);
 
 			if(transform.stamp_ != last_stamp)
@@ -41,12 +39,12 @@ int main(int argc, char** argv)
 				if(distance < 1.35)
 				{
 					//Mi allontano
-					twist.linear.x = 0.5;
+					twist.linear.x = 0.7;
 				}
 				else if(distance > 1.65)
 				{
 					//Mi avvicino
-					twist.linear.x = -0.5;
+					twist.linear.x = -0.7;
 				}
 
 				if(transform.getOrigin().getY() > 0.1)
