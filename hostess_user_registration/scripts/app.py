@@ -122,7 +122,8 @@ def new_user():
 @app.route('/new_user/calibration', methods=['GET', 'POST'])
 def calibration():
     form = RegistrationForm(request.form)
-    return render_template('user_calibration.html', name=form.name.data)
+    goal = Goal.query.filter_by(id=form.goal.data).first_or_404()
+    return render_template('user_calibration.html', form=form, goal=goal)
 
 @app.route('/checkin', methods=['GET', 'POST'])
 def checkin():

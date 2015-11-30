@@ -2,28 +2,39 @@
 {% extends "bootstrap/base.html" %}
 {% block title %}Flasky{% endblock %}
 
-
 {% import "bootstrap/wtf.html" as wtf %}
-
-
 
 {% block body %}
 
 <div class="container">
-	<div class="page-header"> <h1>Calibrazione Nuovo Utente</h1>
-</div>
-<table style="width: 100%">
-	<tr>
-		<td width="50%">
-			<div class="row">
-				<progress class="progress" value="0" max="100"></progress>
-			</div>
-		</td>
-		<td width="50%">
-			<img class="img-responsive center-block" src="http://localhost:8080/stream?topic=/robot/rgb/image_raw" width="100%">
-		</td>
-	</tr>
-</table>
+	<div class="page-header"><h1>Calibrazione Nuovo Utente</h1></div>
+	<table style="width: 100%">
+		<tr>
+			<td width="50%">
+				<table style="width: 100%">
+					<tr>
+						<th width="50%">Nome:</th>
+						<td width="50%">{{ form.name.data }}</td>
+					</tr>
+					<tr>
+						<th width="50%">Cognome:</th>
+						<td width="50%">{{ form.surname.data }}</td>
+					</tr>
+					<tr>
+						<th width="50%">E-mail:</th>
+						<td width="50%">{{ form.mail.data }}</td>
+					</tr>
+					<tr>
+						<th width="50%">Goal:</th>
+						<td width="50%">{{ goal.label }}</td>
+					</tr>
+				</table>
+			</td>
+			<td>
+				<img class="img-responsive center-block" src="http://localhost:8080/stream?topic=/robot/rgb/image_raw" width="100%">
+			</td>
+		</tr>
+	</table>
 </div>
 
 {% endblock %}
