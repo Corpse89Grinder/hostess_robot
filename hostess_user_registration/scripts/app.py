@@ -47,7 +47,6 @@ class AddNewUserIndexForm(Form):
     
 class AddNewGoalIndexForm(Form):
     add_new_goal = SubmitField('Aggiungi nuovo goal')
-    
 
 class RegistrationForm(Form):
     name = StringField('Nome')
@@ -119,7 +118,7 @@ def new_user():
     form.goal.choices = [(g.id, g.label) for g in Goal.query.all()]
     return render_template('register.html', form=form)
     
-@app.route('/new_user/calibration', methods=['GET', 'POST'])
+@app.route('/new_user/calibration', methods=['POST'])
 def calibration():
     form = RegistrationForm(request.form)
     goal = Goal.query.filter_by(id=form.goal.data).first_or_404()
