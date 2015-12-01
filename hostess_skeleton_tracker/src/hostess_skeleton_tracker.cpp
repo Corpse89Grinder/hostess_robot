@@ -1,5 +1,6 @@
 #include <ros/ros.h>
 #include <ros/package.h>
+#include <std_msgs/Int64.h>
 #include <tf/transform_broadcaster.h>
 #include <kdl/frames.hpp>
 #include <string>
@@ -30,7 +31,7 @@ void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator&, XnUserID, void*);
 void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator&, XnUserID, void*);
 void publishTransform(XnUserID const&, XnSkeletonJoint const&, std::string const&, std::string const&);
 void publishHeadTransforms(const std::string&);
-void publishTorsoTransforms(const std::string&);
+void publishTorsoTransform(const std::string&, int&);
 bool checkCenterOfMass(XnUserID const&);
 
 std::map<int, std::pair<ros::Time, ros::Duration> > users_timeouts;
@@ -75,20 +76,44 @@ int main(int argc, char **argv)
 	nRetVal = g_Context.StartGeneratingAll();
 	CHECK_RC(nRetVal, "StartGenerating");
 
-    ros::NodeHandle pnh("~");
     std::string frame_id("camera_depth_frame");
-    pnh.getParam("camera_frame_id", frame_id);
+    nh.getParam("camera_frame_id", frame_id);
+
+    int skeleton_to_track = 0;
+    nh.setParam("skeleton_to_track", skeleton_to_track);
 
 	while(nh.ok())
 	{
-		g_Context.WaitAndUpdateAll();
-		publishHeadTransforms(frame_id);
+		while(nh.getParam("skeleton_to_track", skeleton_to_track) && nh.ok())
+		{
+			if(skeleton_to_track != 0)	//0 means no skeleton to track, otherwise it represents the userid of the tracker
+			{
+				break;
+			}
 
-		ros::Rate(30).sleep();
+			g_Context.WaitAndUpdateAll();
+			publishHeadTransforms(frame_id);
+
+			ros::Rate(30).sleep();
+		}
+
+		while(nh.ok())
+		{
+			g_Context.WaitAndUpdateAll();
+			publishTorsoTransform(frame_id, skeleton_to_track);
+
+			ros::Rate(30).sleep();
+
+			if(skeleton_to_track == 0)
+			{
+				ros::param::set("skeleton_to_track", skeleton_to_track);
+				break;
+			}
+		}
 	}
 
 	g_Context.Shutdown();
-	return 0;
+	return EXIT_SUCCESS;
 }
 
 void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
@@ -172,26 +197,18 @@ void publishHeadTransforms(const std::string& frame_id)
     }
 }
 
-void publishTorsoTransforms(const std::string& frame_id)
+void publishTorsoTransform(const std::string& frame_id, int& skeleton_to_track)
 {
     ros::Time now = ros::Time::now();
 
-    XnUInt16 users_count = MAX_USERS;
-    XnUserID users[MAX_USERS];
-
-    g_UserGenerator.GetUsers(users, users_count);
-
-    for(int i = 0; i < users_count; ++i)
-    {
-        XnUserID user = users[i];
-
-        if(!checkCenterOfMass(user))
-        {
-            continue;
-        }
-
-        publishTransform(user, XN_SKEL_TORSO, frame_id, "torso");
-    }
+	if(checkCenterOfMass(skeleton_to_track))
+	{
+		publishTransform(skeleton_to_track, XN_SKEL_TORSO, frame_id, "torso");
+	}
+	else
+	{
+		skeleton_to_track = 0;
+	}
 }
 
 bool checkCenterOfMass(XnUserID const& user)
@@ -199,22 +216,43 @@ bool checkCenterOfMass(XnUserID const& user)
 	XnPoint3D center_of_mass;
 	XnStatus status = g_UserGenerator.GetCoM(user, center_of_mass);
 
-    double X = -center_of_mass.X / 1000.0;
-	double Y = center_of_mass.Y / 1000.0;
-	double Z = center_of_mass.Z / 1000.0;
-
-	if(status != XN_STATUS_OK || (X == 0 && Y == 0 && Z == 0))
+	if(status != XN_STATUS_OK || (center_of_mass.X == 0 && center_of_mass.Y == 0 && center_of_mass.Z == 0))
     {
-		ROS_INFO("Errore COM utente %d", user);
-		return false;
+		if(users_timeouts[user].first.isZero())
+		{
+			users_timeouts[user].first = ros::Time::now();
+
+			return true;
+		}
+		else
+		{
+			ros::Time now = ros::Time::now();
+
+			users_timeouts[user].second += now - users_timeouts[user].first;
+			users_timeouts [user].first = now;
+
+			if(users_timeouts[user].second.sec >= 1)
+			{
+				return false;
+			}
+			else
+			{
+				return true;
+			}
+		}
     }
 	else
 	{
-		return true;
-	}
+		if(!users_timeouts[user].first.isZero())
+		{
+			users_timeouts[user].first = ros::Time(0);
+		}
 
-	if(users_timeouts[0].first.isZero())
-	{
-		ROS_ERROR("OK");
+		if(!users_timeouts[user].second.isZero())
+		{
+			users_timeouts[user].second = ros::Duration(0);
+		}
+
+		return true;
 	}
 }
