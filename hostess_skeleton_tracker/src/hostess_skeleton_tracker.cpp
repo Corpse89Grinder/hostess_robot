@@ -6,6 +6,7 @@
 #include <XnOpenNI.h>
 #include <XnCodecIDs.h>
 #include <XnCppWrapper.h>
+#include <map>
 
 #define MAX_USERS 15
 
@@ -31,6 +32,8 @@ void publishTransform(XnUserID const&, XnSkeletonJoint const&, std::string const
 void publishHeadTransforms(const std::string&);
 void publishTorsoTransforms(const std::string&);
 bool checkCenterOfMass(XnUserID const&);
+
+std::map<int, std::pair<ros::Time, ros::Duration> > users_timeouts;
 
 int main(int argc, char **argv)
 {
@@ -208,5 +211,10 @@ bool checkCenterOfMass(XnUserID const& user)
 	else
 	{
 		return true;
+	}
+
+	if(users_timeouts[0].first.isZero())
+	{
+		ROS_ERROR("OK");
 	}
 }
