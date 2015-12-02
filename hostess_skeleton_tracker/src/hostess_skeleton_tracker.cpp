@@ -17,15 +17,7 @@ xn::Context        g_Context;
 xn::DepthGenerator g_DepthGenerator;
 xn::UserGenerator  g_UserGenerator;
 
-XnBool g_bNeedPose   = FALSE;
-XnChar g_strPose[20] = "";
-
-#define CHECK_RC(nRetVal, what)											\
-	if (nRetVal != XN_STATUS_OK)										\
-	{																	\
-		ROS_ERROR("%s failed: %s", what, xnGetStatusString(nRetVal));	\
-		return nRetVal;													\
-	}
+std::map<int, std::pair<ros::Time, ros::Duration> > users_timeouts;
 
 void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator&, XnUserID, void*);
 void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator&, XnUserID, void*);
@@ -34,20 +26,37 @@ void publishHeadTransforms(const std::string&);
 void publishTorsoTransform(const std::string&, int&);
 bool checkCenterOfMass(XnUserID const&);
 
-std::map<int, std::pair<ros::Time, ros::Duration> > users_timeouts;
-
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "openni_tracker");
+    ros::init(argc, argv, "hostess_skeleton_tracker");
     ros::NodeHandle nh;
 
     std::string configFilename = ros::package::getPath("hostess_skeleton_tracker") + "/init/openni_tracker.xml";
     genericUserCalibrationFileName = ros::package::getPath("hostess_skeleton_tracker") + "/init/GenericUserCalibration.bin";
-    XnStatus nRetVal = g_Context.InitFromXmlFile(configFilename.c_str());
-    CHECK_RC(nRetVal, "InitFromXml");
+
+    XnStatus nRetVal;
+
+    while(nh.ok())
+    {
+    	nRetVal = g_Context.InitFromXmlFile(configFilename.c_str());
+
+    	if(nRetVal != XN_STATUS_OK)
+    	{
+    		ROS_INFO("InitFromXml failed: %s Retrying in 3 seconds...", xnGetStatusString(nRetVal));
+    		ros::Duration(3).sleep();
+    	}
+    	else
+    	{
+    		break;
+    	}
+    }
 
     nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_DEPTH, g_DepthGenerator);
-    CHECK_RC(nRetVal, "Find depth generator");
+
+    if(nRetVal != XN_STATUS_OK)
+	{
+		ROS_ERROR("Find depth generator failed: %s", xnGetStatusString(nRetVal));
+	}
 
 	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_USER, g_UserGenerator);
 
@@ -74,7 +83,11 @@ int main(int argc, char **argv)
 	g_UserGenerator.RegisterUserCallbacks(User_NewUser, User_LostUser, NULL, hUserCallbacks);
 
 	nRetVal = g_Context.StartGeneratingAll();
-	CHECK_RC(nRetVal, "StartGenerating");
+
+	if(nRetVal != XN_STATUS_OK)
+	{
+		ROS_ERROR("StartGenerating failed: %s", xnGetStatusString(nRetVal));
+	}
 
     std::string frame_id("camera_depth_frame");
     nh.getParam("camera_frame_id", frame_id);
