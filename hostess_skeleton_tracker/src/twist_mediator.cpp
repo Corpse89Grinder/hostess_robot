@@ -6,11 +6,14 @@
 
 //Maximum distance from skeleton head and face recognition points in space
 #define DISTANCE_THRESHOLD 0.15
+#define MINIMUM_ASSOCIATIONS_FOR_TRACKING 60
 
 void lookForEveryHeadTransform(tf::TransformListener&, std::vector<tf::StampedTransform>&, std::string);
 bool findClosestHeadToFace(std::vector<tf::StampedTransform>&, std::string&);
 bool lookForSpecificBodyTransform(tf::TransformListener&, std::string, std::string, tf::StampedTransform&, ros::Time&);
 int retrieveIndexFromFrame(std::string);
+
+std::map<std::string, std::pair<ros::Time, int> > skeletons;
 
 int main(int argc, char** argv)
 {
@@ -146,6 +149,7 @@ void lookForEveryHeadTransform(tf::TransformListener& listener, std::vector<tf::
 bool findClosestHeadToFace(std::vector<tf::StampedTransform>& transforms, std::string& skeleton_to_track_frame)
 {
 	double min = std::numeric_limits<double>::max();
+	std::string frame_to_track;
 
 	for(int i = 0; i < transforms.size(); i++)
 	{
@@ -154,19 +158,38 @@ bool findClosestHeadToFace(std::vector<tf::StampedTransform>& transforms, std::s
 		if(current < min)
 		{
 			min = current;
-			skeleton_to_track_frame = transforms[i].child_frame_id_;
+			frame_to_track = transforms[i].child_frame_id_;
+		}
+	}
+
+	ros::Time now = ros::Time::now();
+
+	for(auto iterator = skeletons.begin(); iterator != skeletons.end();)
+	{
+		if((now - iterator->second.first).nsec >= 5e8)				//More than half a second passed from the previous finding, I delete the entry
+		{
+			iterator = skeletons.erase(iterator);
+		}
+		else
+		{
+			++iterator;
 		}
 	}
 
 	if(min < DISTANCE_THRESHOLD)	//Right skeleton found.
 	{
-		return true;
+		skeletons[frame_to_track].first = now;
+		skeletons[frame_to_track].second++;
+
+		if(skeletons[frame_to_track].second >= MINIMUM_ASSOCIATIONS_FOR_TRACKING)
+		{
+			skeleton_to_track_frame = frame_to_track;
+			skeletons.clear();
+			return true;
+		}
 	}
-	else
-	{
-		skeleton_to_track_frame.clear();
-		return false;
-	}
+
+	return false;
 }
 
 bool lookForSpecificBodyTransform(tf::TransformListener& listener, std::string frame_id, std::string body_to_track_frame, tf::StampedTransform& transform, ros::Time& last_stamp)

@@ -1,7 +1,7 @@
 <launch>
 	<group ns="hostess_skeleton_tracker">
 		<param name="camera_frame_id" type="str" value="camera_depth_frame" />
-		<param name="user_to_track" type="str" value="Giuseppe" />
+		<param name="user_to_track" type="str" value="giuseppe" />
 
 		<node pkg="hostess_skeleton_tracker" type="hostess_skeleton_tracker" name="hostess_skeleton_tracker" output="screen" />
 		<node pkg="hostess_skeleton_tracker" type="twist_mediator" name="twist_mediator" output="screen" />

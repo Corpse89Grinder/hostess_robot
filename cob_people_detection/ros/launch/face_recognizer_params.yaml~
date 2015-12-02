@@ -29,7 +29,7 @@ recognition_method: 2
 use_unknown_thresh: true
 
 # use depth
-use_depth: true
+use_depth: false
 
 # display timing information
 # bool

@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 2.8.3)
 
 project(hostess_skeleton_tracker)
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+
 find_package(orocos_kdl REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
 	geometry_msgs
