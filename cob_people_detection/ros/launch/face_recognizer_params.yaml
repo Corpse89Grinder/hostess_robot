@@ -8,7 +8,7 @@ enable_face_recognition: true
 
 # this list specifies the persons who shall be recognized by the face recognizer, comment out this line to avoid any specification at startup
 # string[] e.g. ['albert', 'bernhard', 'caesar']
-#identification_labels_to_recognize: ['albert', 'bernhard', 'caesar']
+#identification_labels_to_recognize: ['giuseppe']
 
 
 # metric for nearest neighbor search in face space: 0 = Euclidean, 1 = Mahalanobis, 2 = Mahalanobis Cosine
@@ -29,7 +29,7 @@ recognition_method: 2
 use_unknown_thresh: true
 
 # use depth
-use_depth: true
+use_depth: false
 
 # display timing information
 # bool
@@ -55,5 +55,5 @@ norm_extreme_illumination: false
 
 # set dimension of features ( default )
 # bool
-feature_dimension: 15
+feature_dimension: 200
 
