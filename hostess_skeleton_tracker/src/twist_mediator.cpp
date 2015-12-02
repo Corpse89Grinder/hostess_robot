@@ -1,5 +1,6 @@
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
+#include <geometry_msgs/Twist.h>
 #include <sstream>
 #include <limits>
 
@@ -21,6 +22,8 @@ int main(int argc, char** argv)
 	std::string frame_id("camera_depth_frame");
 	nh.getParam("camera_frame_id", frame_id);
 
+	ROS_INFO("Waiting for user identity.");
+
     while(!ros::param::get("user_to_track", user_to_track) && nh.ok())
     {
     	ros::Duration(1).sleep();
@@ -30,6 +33,8 @@ int main(int argc, char** argv)
 
     ros::Time last_stamp = ros::Time::now();
     int skeleton_to_track = 0;
+
+    ros::Publisher pub = nh.advertise<geometry_msgs::Twist>("/kobra/command_vel", 1);
 
     while(nh.ok())
     {
@@ -49,6 +54,10 @@ int main(int argc, char** argv)
 				ros::param::set("skeleton_to_track", skeleton_to_track);
 				break;
 			}
+
+			geometry_msgs::Twist twist;
+			twist.linear.x = twist.angular.z = 0;
+			pub.publish(twist);
 
 			ros::Rate(30).sleep();
 		}
@@ -70,6 +79,32 @@ int main(int argc, char** argv)
 				double distance = std::sqrt(std::pow(transform.getOrigin().getX(), 2) + std::pow(transform.getOrigin().getY(), 2) + std::pow(transform.getOrigin().getZ(), 2));
 
 				//TODO Ho la distanza, in base ad essa restituisco la percentuale di velocità del robot.
+
+				geometry_msgs::Twist twist;
+
+				if(distance < 1.35)
+				{
+					//Mi allontano
+					twist.linear.x = 0.7;
+				}
+				else if(distance > 1.65)
+				{
+					//Mi avvicino
+					twist.linear.x = -0.7;
+				}
+
+				if(transform.getOrigin().getY() > 0.2)
+				{
+					//Giro a sinistra
+					twist.angular.z = 0.5;
+				}
+				else if(transform.getOrigin().getY() < -0.2)
+				{
+					//Giro a destra
+					twist.angular.z = -0.5;
+				}
+
+				pub.publish(twist);
 			}
 			else
 			{

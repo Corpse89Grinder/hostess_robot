@@ -86,7 +86,7 @@ int main(int argc, char **argv)
 	{
 		while(nh.getParam("skeleton_to_track", skeleton_to_track) && nh.ok())
 		{
-			if(skeleton_to_track != 0)	//0 means no skeleton to track, otherwise it represents the userid of the tracker
+			if(skeleton_to_track != 0)	//0 means no skeleton to track, otherwise it represents the user id of the tracker
 			{
 				break;
 			}

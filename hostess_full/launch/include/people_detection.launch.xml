@@ -50,9 +50,4 @@ for Care-O-bot default is cam3d_nodelet_manager -->
     <arg name="using_nodelets" value="$(arg using_nodelets)"/>
   </include>
 
-
-
-
-  <!-- Openni people segmentation and tracker (not tested for compatibility for a long time!) - adapted to publish the segmented image (does not work upside down, i.e. when robot is watching backwards) (comment out if you do not use the openni-tracker) -->
-  <!-- <node pkg="cob_people_detection" ns="cob_people_detection/openni_tracker" type="openni_tracker" name="openniTrackerNode" output="screen"/> -->
 </launch>
