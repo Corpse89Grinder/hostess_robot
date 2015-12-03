@@ -55,5 +55,5 @@ norm_extreme_illumination: false
 
 # set dimension of features ( default )
 # bool
-feature_dimension: 200
+feature_dimension: 100
 

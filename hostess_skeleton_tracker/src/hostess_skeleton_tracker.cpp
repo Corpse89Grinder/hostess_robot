@@ -9,7 +9,7 @@
 #include <XnCppWrapper.h>
 #include <map>
 
-#define MAX_USERS 15
+#define MAX_USERS 6
 
 std::string genericUserCalibrationFileName;
 

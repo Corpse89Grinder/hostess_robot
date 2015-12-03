@@ -5,8 +5,8 @@
 #include <limits>
 
 //Maximum distance from skeleton head and face recognition points in space
-#define DISTANCE_THRESHOLD 0.15
-#define MINIMUM_ASSOCIATIONS_FOR_TRACKING 60
+#define DISTANCE_THRESHOLD 0.1
+#define MINIMUM_ASSOCIATIONS_FOR_TRACKING 20
 
 void lookForEveryHeadTransform(tf::TransformListener&, std::vector<tf::StampedTransform>&, std::string);
 bool findClosestHeadToFace(std::vector<tf::StampedTransform>&, std::string&);
@@ -14,6 +14,7 @@ bool lookForSpecificBodyTransform(tf::TransformListener&, std::string, std::stri
 int retrieveIndexFromFrame(std::string);
 
 std::map<std::string, std::pair<ros::Time, int> > skeletons;
+std::map<std::string, ros::Time> last_stamp;
 
 int main(int argc, char** argv)
 {
@@ -75,6 +76,8 @@ int main(int argc, char** argv)
 				break;
 			}
 
+			geometry_msgs::Twist twist;
+
 			tf::StampedTransform transform;
 
 			if(lookForSpecificBodyTransform(listener, frame_id, skeleton_to_track_frame, transform, last_stamp))
@@ -82,8 +85,6 @@ int main(int argc, char** argv)
 				double distance = std::sqrt(std::pow(transform.getOrigin().getX(), 2) + std::pow(transform.getOrigin().getY(), 2) + std::pow(transform.getOrigin().getZ(), 2));
 
 				//TODO Ho la distanza, in base ad essa restituisco la percentuale di velocità del robot.
-
-				geometry_msgs::Twist twist;
 
 				if(distance < 1.35)
 				{
@@ -106,13 +107,13 @@ int main(int argc, char** argv)
 					//Giro a destra
 					twist.angular.z = -0.5;
 				}
-
-				pub.publish(twist);
 			}
 			else
 			{
 				//Non ho ancora la distanza, se la situazione perdura per molto c'è qualcosa che non va
 			}
+
+			pub.publish(twist);
 
 			ros::Rate(30).sleep();
 		}
@@ -125,7 +126,7 @@ int main(int argc, char** argv)
 
 void lookForEveryHeadTransform(tf::TransformListener& listener, std::vector<tf::StampedTransform>& transforms, std::string user_to_track)
 {
-	for(int i = 1; i <= 15; i++)
+	for(int i = 1; i <= 6; i++)
 	{
 		std::ostringstream oss;
 		oss << "head_" << i;
@@ -137,7 +138,11 @@ void lookForEveryHeadTransform(tf::TransformListener& listener, std::vector<tf::
 			//TODO sistemare i tempi, posso chiedere 2 tempi diversi per i 2 frames da comparare (ultima face e tf passate).
 			listener.lookupTransform(user_to_track, oss.str(), ros::Time(0), transform);
 
-			transforms.push_back(transform);
+			if(transform.stamp_ != last_stamp[oss.str()])
+			{
+				last_stamp[oss.str()] = transform.stamp_;
+				transforms.push_back(transform);
+			}
 		}
 		catch(tf::TransformException &ex)
 		{
@@ -176,7 +181,7 @@ bool findClosestHeadToFace(std::vector<tf::StampedTransform>& transforms, std::s
 		}
 	}
 
-	if(min < DISTANCE_THRESHOLD)	//Right skeleton found.
+	if(min < DISTANCE_THRESHOLD)									//Right skeleton found.
 	{
 		skeletons[frame_to_track].first = now;
 		skeletons[frame_to_track].second++;
