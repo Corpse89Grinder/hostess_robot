@@ -10,8 +10,8 @@
 
 void lookForEveryHeadTransform(tf::TransformListener&, std::vector<tf::StampedTransform>&, std::string);
 bool findClosestHeadToFace(std::vector<tf::StampedTransform>&, std::string&);
-bool lookForSpecificBodyTransform(tf::TransformListener&, std::string, std::string, tf::StampedTransform&, ros::Time&);
-int retrieveIndexFromFrame(std::string);
+bool lookForSpecificBodyTransform(tf::TransformListener&, std::string, std::string, tf::StampedTransform&);
+int changeFrameAndReturnIndex(std::string&);
 
 std::map<std::string, std::pair<ros::Time, int> > skeletons;
 std::map<std::string, ros::Time> last_stamp;
@@ -35,7 +35,6 @@ int main(int argc, char** argv)
 
     tf::TransformListener listener;
 
-    ros::Time last_stamp = ros::Time::now();
     int skeleton_to_track = 0;
 
     ros::Publisher pub = nh.advertise<geometry_msgs::Twist>("/kobra/command_vel", 1);
@@ -54,7 +53,7 @@ int main(int argc, char** argv)
 
 			if(findClosestHeadToFace(transforms, skeleton_to_track_frame))
 			{
-				skeleton_to_track = retrieveIndexFromFrame(skeleton_to_track_frame);
+				skeleton_to_track = changeFrameAndReturnIndex(skeleton_to_track_frame);
 				ros::param::set("skeleton_to_track", skeleton_to_track);
 				break;
 			}
@@ -80,7 +79,7 @@ int main(int argc, char** argv)
 
 			tf::StampedTransform transform;
 
-			if(lookForSpecificBodyTransform(listener, frame_id, skeleton_to_track_frame, transform, last_stamp))
+			if(lookForSpecificBodyTransform(listener, frame_id, skeleton_to_track_frame, transform))
 			{
 				double distance = std::sqrt(std::pow(transform.getOrigin().getX(), 2) + std::pow(transform.getOrigin().getY(), 2) + std::pow(transform.getOrigin().getZ(), 2));
 
@@ -197,15 +196,15 @@ bool findClosestHeadToFace(std::vector<tf::StampedTransform>& transforms, std::s
 	return false;
 }
 
-bool lookForSpecificBodyTransform(tf::TransformListener& listener, std::string frame_id, std::string body_to_track_frame, tf::StampedTransform& transform, ros::Time& last_stamp)
+bool lookForSpecificBodyTransform(tf::TransformListener& listener, std::string frame_id, std::string body_to_track_frame, tf::StampedTransform& transform)
 {
 	try
 	{
 		listener.lookupTransform(frame_id, body_to_track_frame, ros::Time(0), transform);
 
-		if(transform.stamp_ != last_stamp)
+		if(transform.stamp_ != last_stamp[body_to_track_frame])
 		{
-			last_stamp = transform.stamp_;
+			last_stamp[body_to_track_frame] = transform.stamp_;
 
 			return true;
 		}
@@ -220,7 +219,13 @@ bool lookForSpecificBodyTransform(tf::TransformListener& listener, std::string f
 	}
 }
 
-int retrieveIndexFromFrame(std::string frame)
+int changeFrameAndReturnIndex(std::string& frame)
 {
-	return atoi(frame.substr(frame.rfind("_") + 1, frame.length()).c_str());
+	int index = atoi(frame.substr(frame.rfind("_") + 1, frame.length()).c_str());
+
+	std::ostringstream oss;
+	oss << "torso_" << index;
+	frame = oss.str();
+
+	return index;
 }
