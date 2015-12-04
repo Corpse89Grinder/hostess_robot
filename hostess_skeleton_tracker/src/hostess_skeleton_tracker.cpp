@@ -25,6 +25,8 @@ void publishTransform(XnUserID const&, XnSkeletonJoint const&, std::string const
 void publishHeadTransforms(const std::string&);
 void publishTorsoTransform(const std::string&, int&);
 bool checkCenterOfMass(XnUserID const&);
+void stopTrackingAll(int);
+void startTrackingAll();
 
 int main(int argc, char **argv)
 {
@@ -74,7 +76,7 @@ int main(int argc, char **argv)
 	if (!g_UserGenerator.IsCapabilitySupported(XN_CAPABILITY_SKELETON))
 	{
 		ROS_INFO("Supplied user generator doesn't support skeleton");
-		return 1;
+		return EXIT_FAILURE;
 	}
 
 	g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_UPPER);
@@ -110,20 +112,7 @@ int main(int argc, char **argv)
 			ros::Rate(30).sleep();
 		}
 
-		XnUInt16 users_count = MAX_USERS;
-		XnUserID users[MAX_USERS];
-
-		g_UserGenerator.GetUsers(users, users_count);
-
-		for(int i = 0; i < users_count; ++i)
-		{
-			XnUserID user = users[i];
-
-			if(user != skeleton_to_track && g_UserGenerator.GetSkeletonCap().IsTracking(user))
-			{
-				g_UserGenerator.GetSkeletonCap().StopTracking(user);
-			}
-		}
+		stopTrackingAll(skeleton_to_track);
 
 		while(nh.ok())
 		{
@@ -139,12 +128,7 @@ int main(int argc, char **argv)
 			}
 		}
 
-		for(int i = 0; i < users_count; ++i)
-		{
-			XnUserID user = users[i];
-
-			g_UserGenerator.GetSkeletonCap().StartTracking(user);
-		}
+		startTrackingAll();
 	}
 
 	g_Context.Shutdown();
@@ -153,10 +137,18 @@ int main(int argc, char **argv)
 
 void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
 {
-	ROS_INFO("New User %d. Start tracking.", nId);
+	ROS_INFO("New User %d.", nId);
 
 	g_UserGenerator.GetSkeletonCap().LoadCalibrationDataFromFile(nId, genericUserCalibrationFileName.c_str());
-	g_UserGenerator.GetSkeletonCap().StartTracking(nId);
+
+	int skeleton_to_track;
+	ros::param::get("skeleton_to_track", skeleton_to_track);
+
+	if(skeleton_to_track == 0)
+	{
+		g_UserGenerator.GetSkeletonCap().StartTracking(nId);
+		ROS_INFO("Start tracking user: %d.", nId);
+	}
 }
 
 void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
@@ -291,5 +283,38 @@ bool checkCenterOfMass(XnUserID const& user)
 		}
 
 		return true;
+	}
+}
+
+void stopTrackingAll(int current_user)
+{
+	XnUInt16 users_count = MAX_USERS;
+	XnUserID users[MAX_USERS];
+
+	g_UserGenerator.GetUsers(users, users_count);
+
+	for(int i = 0; i < users_count; ++i)
+	{
+		XnUserID user = users[i];
+
+		if(user != current_user && g_UserGenerator.GetSkeletonCap().IsTracking(user))
+		{
+			g_UserGenerator.GetSkeletonCap().StopTracking(user);
+		}
+	}
+}
+
+void startTrackingAll()
+{
+	XnUInt16 users_count = MAX_USERS;
+	XnUserID users[MAX_USERS];
+
+	g_UserGenerator.GetUsers(users, users_count);
+
+	for(int i = 0; i < users_count; ++i)
+	{
+		XnUserID user = users[i];
+
+		g_UserGenerator.GetSkeletonCap().StartTracking(user);
 	}
 }
