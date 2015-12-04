@@ -191,7 +191,6 @@ void publishTransform(XnUserID const& user, XnSkeletonJoint const& joint, std::s
     transform.setOrigin(tf::Vector3(x, y, z));
     transform.setRotation(tf::Quaternion(qx, -qy, -qz, qw));
 
-    // #4994
     tf::Transform change_frame;
     change_frame.setOrigin(tf::Vector3(0, 0, 0));
 
