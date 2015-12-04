@@ -95,6 +95,11 @@ int main(int argc, char **argv)
     int skeleton_to_track = 0;
     nh.setParam("skeleton_to_track", skeleton_to_track);
 
+    XnPoint3D center_of_mass;
+    g_UserGenerator.GetCoM(1, center_of_mass);
+
+    return 0;
+
 	while(nh.ok())
 	{
 		while(nh.getParam("skeleton_to_track", skeleton_to_track) && nh.ok())
