@@ -80,7 +80,6 @@ int main(int argc, char **argv)
 	g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_UPPER);
 
     XnCallbackHandle hUserCallbacks;
-	g_UserGenerator.RegisterUserCallbacks(User_NewUser, User_LostUser, NULL, hUserCallbacks);
 
 	nRetVal = g_Context.StartGeneratingAll();
 
@@ -97,6 +96,8 @@ int main(int argc, char **argv)
 
 	while(nh.ok())
 	{
+		g_UserGenerator.RegisterUserCallbacks(User_NewUser, User_LostUser, NULL, hUserCallbacks);
+
 		while(nh.getParam("skeleton_to_track", skeleton_to_track) && nh.ok())
 		{
 			if(skeleton_to_track != 0)	//0 means no skeleton to track, otherwise it represents the user id of the tracker
@@ -109,6 +110,23 @@ int main(int argc, char **argv)
 
 			ros::Rate(30).sleep();
 		}
+
+		XnUInt16 users_count = MAX_USERS;
+		XnUserID users[MAX_USERS];
+
+		g_UserGenerator.GetUsers(users, users_count);
+
+		for(int i = 0; i < users_count; ++i)
+		{
+			XnUserID user = users[i];
+
+			if(user != skeleton_to_track && g_UserGenerator.GetSkeletonCap().IsTracking(user))
+			{
+				g_UserGenerator.GetSkeletonCap().StopTracking(user);
+			}
+		}
+
+		g_UserGenerator.UnregisterUserCallbacks(hUserCallbacks);
 
 		while(nh.ok())
 		{
@@ -131,21 +149,20 @@ int main(int argc, char **argv)
 
 void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
 {
-	ROS_INFO("New User %d", nId);
+	ROS_INFO("New User %d. Start tracking.", nId);
 
 	g_UserGenerator.GetSkeletonCap().LoadCalibrationDataFromFile(nId, genericUserCalibrationFileName.c_str());
 	g_UserGenerator.GetSkeletonCap().StartTracking(nId);
-
-	ROS_INFO("Start tracking user %d", nId);
 }
 
 void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
 {
-	ROS_INFO("Lost user %d", nId);
+	ROS_INFO("Lost user %d. Stop tracking.", nId);
 
-	g_UserGenerator.GetSkeletonCap().StopTracking(nId);
-
-	ROS_INFO("Stop tracking user %d", nId);
+	if(g_UserGenerator.GetSkeletonCap().IsTracking(nId))
+	{
+		g_UserGenerator.GetSkeletonCap().StopTracking(nId);
+	}
 }
 
 void publishTransform(XnUserID const& user, XnSkeletonJoint const& joint, std::string const& frame_id, std::string const& child_frame_id)
