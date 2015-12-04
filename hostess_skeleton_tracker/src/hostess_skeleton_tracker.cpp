@@ -80,6 +80,7 @@ int main(int argc, char **argv)
 	g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_UPPER);
 
     XnCallbackHandle hUserCallbacks;
+    g_UserGenerator.RegisterUserCallbacks(User_NewUser, User_LostUser, NULL, hUserCallbacks);
 
 	nRetVal = g_Context.StartGeneratingAll();
 
@@ -96,8 +97,6 @@ int main(int argc, char **argv)
 
 	while(nh.ok())
 	{
-		g_UserGenerator.RegisterUserCallbacks(User_NewUser, User_LostUser, NULL, hUserCallbacks);
-
 		while(nh.getParam("skeleton_to_track", skeleton_to_track) && nh.ok())
 		{
 			if(skeleton_to_track != 0)	//0 means no skeleton to track, otherwise it represents the user id of the tracker
@@ -126,8 +125,6 @@ int main(int argc, char **argv)
 			}
 		}
 
-		g_UserGenerator.UnregisterUserCallbacks(hUserCallbacks);
-
 		while(nh.ok())
 		{
 			g_Context.WaitAndUpdateAll();
@@ -140,6 +137,13 @@ int main(int argc, char **argv)
 				ros::param::set("skeleton_to_track", skeleton_to_track);
 				break;
 			}
+		}
+
+		for(int i = 0; i < users_count; ++i)
+		{
+			XnUserID user = users[i];
+
+			g_UserGenerator.GetSkeletonCap().StartTracking(user);
 		}
 	}
 
