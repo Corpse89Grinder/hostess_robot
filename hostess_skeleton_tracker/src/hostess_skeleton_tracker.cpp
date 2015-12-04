@@ -95,6 +95,11 @@ int main(int argc, char **argv)
     int skeleton_to_track = 0;
     nh.setParam("skeleton_to_track", skeleton_to_track);
 
+    XnPoint3D center_of_mass;
+    g_UserGenerator.GetCoM(1, center_of_mass);
+
+    return 0;
+
 	while(nh.ok())
 	{
 		while(nh.getParam("skeleton_to_track", skeleton_to_track) && nh.ok())
@@ -174,14 +179,17 @@ void publishTransform(XnUserID const& user, XnSkeletonJoint const& joint, std::s
     static tf::TransformBroadcaster br;
 
     XnSkeletonJointPosition joint_position;
-    g_UserGenerator.GetSkeletonCap().GetSkeletonJointPosition(user, joint, joint_position);
+    XnSkeletonJointOrientation joint_orientation;
+
+    if(g_UserGenerator.GetSkeletonCap().IsTracking(user))
+    {
+		g_UserGenerator.GetSkeletonCap().GetSkeletonJointPosition(user, joint, joint_position);
+		g_UserGenerator.GetSkeletonCap().GetSkeletonJointOrientation(user, joint, joint_orientation);
+    }
 
     double x = -joint_position.position.X / 1000.0;
     double y = joint_position.position.Y / 1000.0;
     double z = joint_position.position.Z / 1000.0;
-
-    XnSkeletonJointOrientation joint_orientation;
-    g_UserGenerator.GetSkeletonCap().GetSkeletonJointOrientation(user, joint, joint_orientation);
 
     XnFloat* m = joint_orientation.orientation.elements;
     KDL::Rotation rotation(m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8]);
