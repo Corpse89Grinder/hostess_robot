@@ -16,21 +16,21 @@
 		<div class="page-header">
 			<h1>Aggiungi nuova destinazione</h1>
 		</div>
-		<form method="POST">
 		<div class="row">
 			<div class="col-md-12">
-				{{ form.hidden_tag() }}
-				{{ wtf.form_errors(form, hiddens="only") }}
-				{{ wtf.form_field(form.label, autocomplete="off") }}
-				{{ wtf.form_field(form.x, autocomplete="off") }}
-				{{ wtf.form_field(form.y, autocomplete="off") }}
+				<form method="POST" id="form">
+					{{ form.hidden_tag() }}
+					{{ wtf.form_errors(form, hiddens="only") }}
+					{{ wtf.form_field(form.label, autocomplete="off") }}
+					{{ wtf.form_field(form.x, autocomplete="off") }}
+					{{ wtf.form_field(form.y, autocomplete="off") }}
+				</form>
 			</div>
 		</div>
 		<div class="page-footer">
-			<input class="btn btn-default" id="submit" name="submit" type="submit" value="Aggiungi destinazione" />
+			<input class="btn btn-default" type="button" value="Aggiungi destinazione" onclick="document.getElementById('form').submit();" />
 			<input class="btn btn-default" type="button" value="Ritorna al menù principale" onclick="window.location='/index';" />
 			<span class="stretch"></span>
 		</div>
-		</form>
 	</div>
 {% endblock %}
