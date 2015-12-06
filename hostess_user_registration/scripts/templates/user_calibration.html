@@ -1,41 +1,57 @@
-
 {% extends "bootstrap/base.html" %}
-{% block title %}Flasky{% endblock %}
+
+{% block title %}
+	Hostess Robot
+{% endblock %}
+
+{% block styles %}
+	{{ super() }}
+	<link rel="stylesheet" href="{{ url_for('.static', filename='styles.css') }}">
+{% endblock %}
 
 {% import "bootstrap/wtf.html" as wtf %}
 
 {% block body %}
-
-<div class="container">
-	<div class="page-header"><h1>Calibrazione Nuovo Utente</h1></div>
-	<table style="width: 100%">
-		<tr>
-			<td width="50%">
-				<table style="width: 100%">
-					<tr>
-						<th width="50%">Nome:</th>
-						<td width="50%">{{ form.name.data }}</td>
-					</tr>
-					<tr>
-						<th width="50%">Cognome:</th>
-						<td width="50%">{{ form.surname.data }}</td>
-					</tr>
-					<tr>
-						<th width="50%">E-mail:</th>
-						<td width="50%">{{ form.mail.data }}</td>
-					</tr>
-					<tr>
-						<th width="50%">Goal:</th>
-						<td width="50%">{{ goal.label }}</td>
-					</tr>
-				</table>
-			</td>
-			<td>
-				<img class="img-responsive center-block" src="http://localhost:8080/stream?topic=/robot/rgb/image_raw" width="100%">
-			</td>
-		</tr>
-	</table>
-	<button type="button" onclick="alert('Prova')">Clicca!</button>
-</div>
-
+	{% block scripts %}
+		<script type="text/javascript" src="{{ url_for('.static', filename='scripts.js') }}"></script>
+		{{ super() }}
+	{% endblock %}
+	<div class="container">
+		<div class="page-header">
+			<h1>Calibrazione nuovo utente</h1>
+		</div>
+		<table style="width: 100%">
+			<tr>
+				<td width="50%">
+					<table style="width: 100%">
+						<tr>
+							<th width="50%">Nome:</th>
+							<td width="50%">{{ form.name.data }}</td>
+						</tr>
+						<tr>
+							<th width="50%">Cognome:</th>
+							<td width="50%">{{ form.surname.data }}</td>
+						</tr>
+						<tr>
+							<th width="50%">E-mail:</th>
+							<td width="50%">{{ form.mail.data }}</td>
+						</tr>
+						<tr>
+							<th width="50%">Goal:</th>
+							<td width="50%">{{ goal.label }}</td>
+						</tr>
+					</table>
+				</td>
+				<td>
+					<img class="img-responsive center-block" src="http://localhost:8080/stream?topic=/robot/rgb/image_raw" width="100%" >
+				</td>
+			</tr>
+		</table>
+		<div class="page-footer">
+			<input class="btn btn-default" type="submit" value="Avvia calibrazione volto" onclick="startCalibration(this);" autocomplete="off" />
+			<input class="btn btn-default" type="submit" value="Salva nuovo utente" onclick="" disabled="disabled" autocomplete="off" />
+			<input class="btn btn-default" type="submit" value="Ritorna al menù principale" onclick="window.location='/index';" />
+			<span class="stretch"></span>
+		</div>
+	</div>
 {% endblock %}

@@ -1,0 +1,21 @@
+.page-footer, .stretched-div
+{
+	text-align: justify;
+	-ms-test-justify: distribute-all-lines;
+	text-justify: distribute-all-lines;
+}
+
+.page-footer
+{
+	padding-top: 9px;
+	margin-top: 10px;
+	border-top: 1px solid #EEE;
+}
+
+.stretch
+{
+	width: 100%;
+    display: inline-block;
+    font-size: 0;
+    line-height: 0
+}

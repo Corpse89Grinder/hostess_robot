@@ -1,0 +1,36 @@
+{% extends "bootstrap/base.html" %}
+
+{% block title %}
+	Hostess Robot
+{% endblock %}
+
+{% block styles %}
+	{{ super() }}
+	<link rel="stylesheet" href="{{ url_for('.static', filename='styles.css') }}">
+{% endblock %}
+
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% block body %}
+	<div class="container">
+		<div class="page-header">
+			<h1>Aggiungi nuova destinazione</h1>
+		</div>
+		<div class="row">
+			<div class="col-md-12">
+				<form id="myForm" method="POST">
+					{{ form.hidden_tag() }}
+					{{ wtf.form_errors(form, hiddens="only") }}
+					{{ wtf.form_field(form.label, autocomplete="off") }}
+					{{ wtf.form_field(form.x, autocomplete="off") }}
+					{{ wtf.form_field(form.y, autocomplete="off") }}
+				</form>
+			</div>
+		</div>
+		<div class="page-footer">
+			<input class="btn btn-default" type="submit" value="Aggiungi destinazione" form="myForm" />
+			<input class="btn btn-default" type="submit" value="Ritorna al menù principale" onclick="window.location='/index';" />
+			<span class="stretch"></span>
+		</div>
+	</div>
+{% endblock %}

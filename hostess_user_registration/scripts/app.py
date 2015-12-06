@@ -7,7 +7,7 @@ from wtforms.validators import Required
 from flask_bootstrap import Bootstrap
 from flask.ext.sqlalchemy import SQLAlchemy
 from sqlalchemy import func
-import os, sys
+import os, sys, rospy
 from flask_wtf import form
 from matplotlib.pyplot import connect
 from sqlalchemy.sql.expression import desc
@@ -24,12 +24,7 @@ from flask.ext.script import Manager
 from flask.ext.migrate import Migrate, MigrateCommand
 
 script = sys.argv[0]
-command = sys.argv[1]
-
-if command == 'db':
-    sys.argv = script, command, sys.argv[2]
-elif command == 'runserver':
-    sys.argv = script, command, '-d'
+sys.argv = script, 'runserver', '-d'
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'hard to guess string'
@@ -41,31 +36,20 @@ manager = Manager(app)
 migrate = Migrate(app, db)
 manager.add_command('db', MigrateCommand)
 
-
-class AddNewUserIndexForm(Form):
-    add_new_user = SubmitField('Aggiungi nuovo utente')
-    
-class AddNewGoalIndexForm(Form):
-    add_new_goal = SubmitField('Aggiungi nuovo goal')
-
 class RegistrationForm(Form):
     name = StringField('Nome')
     surname = StringField('Cognome')
-    mail = StringField('Email')
-    goal = SelectField('Dove vuoi andare', choices=[], coerce=int)
-    submit = SubmitField('Invia')
+    mail = StringField('E-Mail')
+    goal = SelectField('Dove vuoi andare?', choices=[], coerce=int)
 
 class AddGoalForm(Form):
-    label = StringField('label')
-    x = FloatField('x')
-    y = FloatField('y')
-    submit = SubmitField('Invia')
-
+    label = StringField('Destinazione')
+    x = FloatField('X')
+    y = FloatField('Y')
 
 class CheckInForm(Form):
     mail = StringField('Email')
     submit = SubmitField('Invia')
-
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -79,7 +63,6 @@ class User(db.Model):
     def __repr__(self):
         return '<User %r>' % self.name
 
-
 class Goal(db.Model):
     __tablename__ = 'goals'
     id = db.Column(db.Integer, primary_key=True)
@@ -91,15 +74,9 @@ class Goal(db.Model):
     def __repr__(self):
         return '<User %r>' % self.label
 
-
-@app.route('/users')
-def users():
-    return render_template('users.html', users=User.query.all())
-
 @app.route('/goals')
 def goals():
     return render_template('goals.html', goals=Goal.query.all())
-
 
 @app.route('/new_goal', methods=['GET', 'POST'])
 def new_goal():
@@ -109,20 +86,31 @@ def new_goal():
         db.session.add(goal)
         db.session.commit()
         return redirect(url_for('.goals'))
-    return render_template('register.html', form=form)
+    return render_template('new_goal.html', form=form)
 
+@app.route('/delete_goal')
+def delete_goal():
+    return render_template('')
 
-@app.route('/new_user', methods=['GET', 'POST'])
+@app.route('/users')
+def users():
+    return render_template('users.html', users=User.query.all())
+
+@app.route('/new_user')
 def new_user():
     form = RegistrationForm()
     form.goal.choices = [(g.id, g.label) for g in Goal.query.all()]
-    return render_template('register.html', form=form)
+    return render_template('new_user.html', form=form)
     
 @app.route('/new_user/calibration', methods=['POST'])
 def calibration():
     form = RegistrationForm(request.form)
     goal = Goal.query.filter_by(id=form.goal.data).first_or_404()
     return render_template('user_calibration.html', form=form, goal=goal)
+
+@app.route('/delete_user')
+def delete_user():
+    return render_template('delete_user.html', users=User.query.all())
 
 @app.route('/checkin', methods=['GET', 'POST'])
 def checkin():
@@ -133,22 +121,13 @@ def checkin():
             return render_template('checkin.html', user=user)
     return render_template('register.html', form=form)
 
-
 @app.route('/')
 def root():
     return redirect(url_for('.index'))
 
-@app.route('/index', methods=['GET', 'POST'])
+@app.route('/index')
 def index():
-    new_user_form = AddNewUserIndexForm(request.form)
-    new_goal_form = AddNewGoalIndexForm(request.form)
-    if request.method == 'POST':
-        if 'add_new_user' in request.form:
-            return redirect(url_for('.new_user'))
-        elif 'add_new_goal' in request.form:
-            return redirect(url_for('.new_goal'))
-    return render_template('index.html', new_user_form=new_user_form, new_goal_form=new_goal_form)
-
+    return render_template('index.html')
 
 if __name__ == '__main__':
     manager.run()	
