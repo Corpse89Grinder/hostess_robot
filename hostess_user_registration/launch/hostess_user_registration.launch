@@ -1,6 +1,6 @@
 <!---->
 
 <launch>
-	<node pkg="hostess_user_registration" type="app.py" name="hostess_user_registration" output="screen" />
+	<node pkg="hostess_user_registration" name="hostess_user_registration" type="app.py" args="runserver"/>
 	<node pkg="mjpeg_server" type="mjpeg_server" name="mjpeg_server" output="screen" />
 </launch>

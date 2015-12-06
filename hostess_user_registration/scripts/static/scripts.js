@@ -18,11 +18,35 @@ function disableButton(button)
 
 function deleteUsers()
 {
-	var table = document.getElementById("tabella");
+	if(window.confirm('Sei sicuro di voler eliminare gli utenti selezionati?'))
+	{
+		deleteSelected();
+	}
+}
+
+function deleteGoals()
+{
+	if(window.confirm('Sei sicuro di voler eliminare le destinazioni selezionate?'))
+	{
+		deleteSelected();
+	}
+}
+
+function deleteSelected()
+{
+	var checkboxes = document.getElementsByName("checkbox");
+	var i;
 	
-	table.deleteRow(2);
+	var table = document.getElementById("table");
 	
-	//window.confirm('Sei sicuro di voler eliminare gli utenti selezionati?');
+	for(i = checkboxes.length - 1; i >= 0; i--)
+	{
+		if(checkboxes[i].checked)
+		{
+			table.deleteRow(i + 1);
+			//Mandare richiesta di eliminazione al database
+		}
+	}
 }
 
 function selectRow(tr)

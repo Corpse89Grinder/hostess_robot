@@ -2,7 +2,7 @@
 
 {% block title %}
 	Hostess Robot
-{% endblock %}
+{% endblock %}}
 
 {% block styles %}
 	{{ super() }}
@@ -18,28 +18,26 @@
 	{% endblock %}
 	<div class="container">
 		<div class="page-header">
-			<h1>Utenti Registrati</h1>
+			<h1>Rimuovi destinazioni</h1>
 		</div>
 		<div class="row">
 			<div class="col-md-12">
-				<table class="table" id="tabella">
-				    <thead>
+				<table class="table table-hover" id="table">
+					<thead>
 						<tr>
 							<th>Seleziona</th>
-							<th>ID</th>
-					        <th>Nome</th>
-					        <th>Cognome</th>
-					        <th>E-Mail</th>
+					        <th>Id</th>
+					        <th>Label</th>
+					        <th>Position</th>
 						</tr>
 					</thead>
 					<tbody>
-						{% for user in users %}
+						{% for goal in goals %}
 						<tr>
-							<td><input type="checkbox"></td>
-							<td><script>document.write(fixedDigit({{ user.id }}))</script></td>
-							<td>{{ user.name }}</td>
-							<td>{{ user.surname }}</td>
-							<td>{{ user.email }}</td>
+							<td><input type="checkbox" name="checkbox" autocomplete="off"></td>
+							<td>{{ goal.id }}</td>
+							<td>{{ goal.label }}</td>
+							<td> ({{ goal.x }}, {{ goal.y}})</td>
 						</tr>
 						{% endfor %}
 					</tbody>
@@ -47,8 +45,8 @@
 			</div>
 		</div>
 		<div class="page-footer">
-			<input class="btn btn-default" type="submit" value="Rimuovi utente selezionato" onclick="deleteUsers()" />
-			<input class="btn btn-default" type="submit" value="Ritorna al menù principale" onclick="window.location='/index';" />
+			<input class="btn btn-default" type="button" value="Rimuovi destinazioni selezionate" onclick="deleteGoals();" />
+			<input class="btn btn-default" type="button" value="Ritorna al menù principale" onclick="window.location='/index';" />
 			<span class="stretch"></span>
 		</div>
 	</div>

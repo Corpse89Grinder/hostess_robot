@@ -7,7 +7,7 @@ from wtforms.validators import Required
 from flask_bootstrap import Bootstrap
 from flask.ext.sqlalchemy import SQLAlchemy
 from sqlalchemy import func
-import os, sys, rospy
+import os, sys
 from flask_wtf import form
 from matplotlib.pyplot import connect
 from sqlalchemy.sql.expression import desc
@@ -20,11 +20,13 @@ from flask.templating import render_template
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
-from flask.ext.script import Manager 
+from flask.ext.script import Manager
 from flask.ext.migrate import Migrate, MigrateCommand
 
 script = sys.argv[0]
-sys.argv = script, 'runserver', '-d'
+sys.argv = [script, 'runserver', '--host', '0.0.0.0']
+
+print sys.argv
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'hard to guess string'
@@ -81,16 +83,18 @@ def goals():
 @app.route('/new_goal', methods=['GET', 'POST'])
 def new_goal():
     form = AddGoalForm(request.form)
-    if request.method == 'POST' and form.validate():    
+    if request.method == 'POST' and form.validate():
         goal = Goal(label=form.label.data, x=form.x.data, y=form.y.data)
         db.session.add(goal)
         db.session.commit()
         return redirect(url_for('.goals'))
+    else:
+        print 'arrivata'
     return render_template('new_goal.html', form=form)
 
-@app.route('/delete_goal')
+@app.route('/delete_goals')
 def delete_goal():
-    return render_template('')
+    return render_template('delete_goals.html', goals=Goal.query.all())
 
 @app.route('/users')
 def users():
@@ -108,9 +112,9 @@ def calibration():
     goal = Goal.query.filter_by(id=form.goal.data).first_or_404()
     return render_template('user_calibration.html', form=form, goal=goal)
 
-@app.route('/delete_user')
+@app.route('/delete_users')
 def delete_user():
-    return render_template('delete_user.html', users=User.query.all())
+    return render_template('delete_users.html', users=User.query.all())
 
 @app.route('/checkin', methods=['GET', 'POST'])
 def checkin():
@@ -130,4 +134,4 @@ def index():
     return render_template('index.html')
 
 if __name__ == '__main__':
-    manager.run()	
+    manager.run()

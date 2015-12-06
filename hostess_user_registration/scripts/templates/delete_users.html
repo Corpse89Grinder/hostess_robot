@@ -18,32 +18,28 @@
 	{% endblock %}
 	<div class="container">
 		<div class="page-header">
-			<h1>Utenti Registrati</h1>
+			<h1>Rimuovi utenti</h1>
 		</div>
 		<div class="row">
 			<div class="col-md-12">
-				<table class="table table-hover">
+				<table class="table table-hover" id="table">
 				    <thead>
 						<tr>
+							<th>Seleziona</th>
 							<th>ID</th>
 					        <th>Nome</th>
 					        <th>Cognome</th>
 					        <th>E-Mail</th>
-							<th>Destinazione</th>
 						</tr>
 					</thead>
 					<tbody>
 						{% for user in users %}
 						<tr>
-							<td>
-								<script>
-									document.write(fixedDigit({{ user.id }}))
-								</script>
-							</td>
+							<td><input type="checkbox" name="checkbox" style="background-color: yellow" autocomplete="off"></td>
+							<td><script>document.write(fixedDigit({{ user.id }}))</script></td>
 							<td>{{ user.name }}</td>
 							<td>{{ user.surname }}</td>
 							<td>{{ user.email }}</td>
-							<td>{{ user.goal.label }}</td>
 						</tr>
 						{% endfor %}
 					</tbody>
@@ -51,8 +47,7 @@
 			</div>
 		</div>
 		<div class="page-footer">
-			<input class="btn btn-default" type="button" value="Aggiungi nuovo utente" onclick="window.location='/new_user';" />
-			<input class="btn btn-default" type="button" value="Rimuovi utenti" onclick="window.location='/delete_users';" />
+			<input class="btn btn-default" type="button" value="Rimuovi utenti selezionati" onclick="deleteUsers()" />
 			<input class="btn btn-default" type="button" value="Ritorna al menù principale" onclick="window.location='/index';" />
 			<span class="stretch"></span>
 		</div>
