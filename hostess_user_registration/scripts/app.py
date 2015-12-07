@@ -1,4 +1,8 @@
 #!/usr/bin/python
+import eventlet
+
+eventlet.monkey_patch()
+
 import os, sys, json, roslib, rospy, actionlib
 from flask import Flask, render_template, request, redirect, url_for
 from flask.ext.wtf import Form
@@ -15,25 +19,23 @@ from types import NoneType
 from numpy import integer, int
 from sqlalchemy.sql.elements import False_
 from flask.templating import render_template
-from flask.ext.script import Manager
 from flask.ext.migrate import Migrate, MigrateCommand
 from cob_people_detection.msg import addDataAction, addDataGoal
 from actionlib_msgs.msg._GoalStatus import GoalStatus
+from flask_socketio import SocketIO, emit, disconnect
+from threading import Thread
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-
-script = sys.argv[0]
-sys.argv = [script, 'runserver', '--host', '0.0.0.0']
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'hard to guess string'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'data.sqlite')
 app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 db = SQLAlchemy(app)
 Bootstrap(app)
-manager = Manager(app)
 migrate = Migrate(app, db)
-manager.add_command('db', MigrateCommand)
+socketio = SocketIO(app, async_mode='eventlet')
 
 class RegistrationForm(Form):
     name = StringField('Nome')
@@ -105,6 +107,44 @@ def user_calibration():
         goal = Goal.query.filter_by(id=form.goal.data).first_or_404()
         return render_template('user_calibration.html', form=form, goal=goal)
     
+@socketio.on('connect', namespace='/test')
+def test_connect():
+    id = db.session.query(db.func.max(User.id)).scalar()
+    if id is None:
+        id = 1
+    else:
+        id = id + 1
+        
+    id_string = '00000000' + str(id)
+    id_string = id_string[-8:]
+        
+    client = actionlib.SimpleActionClient('prova', addDataAction)
+    client.wait_for_server()
+    
+    goal = addDataGoal(label=id_string, capture_mode=1, continuous_mode_images_to_capture=100, continuous_mode_delay=0.03)
+    
+    client.send_goal(goal, done_cb, active_cb, feedback_cb)
+
+def background_thread():
+    count = 0
+    while count < 100:
+        rospy.Rate(10).sleep()
+        count += 1
+        feedback_cb(count)
+        
+def done_cb():
+    print 'ok'
+        
+def active_cb():
+    emit('my response', {'data': 'Connected', 'count': 0})
+    
+def feedback_cb(count):
+    socketio.emit('my response', {'data': 'Server generated event', 'count': count}, namespace='/test')
+    
+@socketio.on('disconnect request', namespace='/test')
+def disconnect_request():
+    disconnect()
+    
 @app.route('/new_user/start_calibration', methods=['POST'])
 def start_calibration():
     if request.method == 'POST' and request.headers['Content-Type'] == 'application/json':
@@ -120,25 +160,21 @@ def start_calibration():
         client = actionlib.SimpleActionClient('prova', addDataAction)
         #client.wait_for_server()
         
-        goal = addDataGoal(label=id_string, capture_mode=1, continuous_mode_images_to_capture=100, continuous_mode_delay=0.03)
+        #goal = addDataGoal(label=id_string, capture_mode=1, continuous_mode_images_to_capture=100, continuous_mode_delay=0.03)
         
-        client.send_goal(goal, done_cb, None, feedback_cb)
+        #client.send_goal(goal, done_cb, None, feedback_cb)
 
+        count = 0
         while True:#sostituire con una duration per avere un timeout
-            if(client.get_state() == GoalStatus.ACTIVE):
-                break
+            count += 1
+            feedback_cb(count)
+            rospy.Rate(10).sleep()
         
         #user = User(id=id, name=name, surname=surname, goal_id=goal_id, email=mail)
         #db.session.add(user)
         #db.session.commit()
         
         return 'Calibration started'
-
-def done_cb():
-    print 'ok'
-    
-def feedback_cb():
-    print 'ok'
     
 @app.route('/new_user/save_user', methods=['POST'])
 def save_user():
@@ -183,4 +219,4 @@ def index():
 
 if __name__ == '__main__':
     rospy.init_node('hostess_management')
-    manager.run()
+    socketio.run(app, debug=True, host='0.0.0.0')

@@ -56,9 +56,29 @@ function onToggle()
 
 function startCalibration(button, name, surname, mail, goal)
 {
-	//disableButton(button);
+	disableButton(button);
 	button.value = 'Calibrazione in corso...';
 	
+	var namespace = '/test';
+	
+	var socket = io.connect('http://' + document.domain + ':' + location.port + namespace);
+	
+	socket.on('my response', function(msg)
+	{
+		$('#progress').val(msg.count);
+		
+		if(msg.count == 100)
+		{
+			socket.emit('disconnect request');
+		}
+	});
+	
+	socket.on('connect', function()
+	{
+		console.log('Connected to server.')
+    });
+	
+	/*
 	var text = '{ "nome" : "' + name + '", "cognome" : "' + surname + '", "e-mail" : "' + mail + '", "destinazione" : ' + goal + ' }';
 	
 	var xhttp = new XMLHttpRequest();
@@ -74,7 +94,7 @@ function startCalibration(button, name, surname, mail, goal)
 	
 	xhttp.setRequestHeader("Content-Type", "application/json");
 	
-	xhttp.send();
+	*/
 }
 
 function disableButton(button)
