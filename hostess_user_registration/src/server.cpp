@@ -5,8 +5,16 @@ typedef actionlib::SimpleActionServer<cob_people_detection::addDataAction> Serve
 
 void execute(const cob_people_detection::addDataGoalConstPtr& goal, Server* as)
 {
-  // Do lots of awesome groundbreaking robot stuff here
-  as->setSucceeded();
+	cob_people_detection::addDataFeedback a;
+
+	for(int i = 0; i < goal->continuous_mode_images_to_capture; i++)
+	{
+		a.images_captured = i;
+		as->publishFeedback(a);
+		ros::Rate(10).sleep();
+	}
+
+	as->setSucceeded();
 }
 
 int main(int argc, char** argv)

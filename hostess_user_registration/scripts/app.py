@@ -121,25 +121,20 @@ def test_connect():
     client = actionlib.SimpleActionClient('prova', addDataAction)
     client.wait_for_server()
     
+    client.active_cb = active_cb()
+    
     goal = addDataGoal(label=id_string, capture_mode=1, continuous_mode_images_to_capture=100, continuous_mode_delay=0.03)
     
-    client.send_goal(goal, done_cb, active_cb, feedback_cb)
-
-def background_thread():
-    count = 0
-    while count < 100:
-        rospy.Rate(10).sleep()
-        count += 1
-        feedback_cb(count)
+    client.send_goal(goal, None, None, feedback_cb)
         
-def done_cb():
-    print 'ok'
+def done_cb(state, count):
+    socketio.emit('my response', {'data': 'Server generated event', 'count': 100}, namespace='/test')
         
 def active_cb():
-    emit('my response', {'data': 'Connected', 'count': 0})
+    socketio.emit('my response', {'data': 'Server generated event', 'count': 0}, namespace='/test')
     
 def feedback_cb(count):
-    socketio.emit('my response', {'data': 'Server generated event', 'count': count}, namespace='/test')
+    socketio.emit('my response', {'data': 'Server generated event', 'count': count.images_captured}, namespace='/test')
     
 @socketio.on('disconnect request', namespace='/test')
 def disconnect_request():

@@ -269,6 +269,11 @@ void FaceCaptureNode::inputCallback(const cob_perception_msgs::ColorDepthImageAr
 		number_captured_images_++;		// increase number of captured images
 		capture_image_ = false;			// reset trigger for recording
 
+		cob_people_detection::addDataFeedback feedback;
+
+		feedback.images_captured = number_captured_images_;
+		add_data_server_->publishFeedback(feedback);
+
 		ROS_INFO("Face number %d captured.", number_captured_images_);
 	}
 }

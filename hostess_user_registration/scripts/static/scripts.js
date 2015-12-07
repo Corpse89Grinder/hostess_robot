@@ -67,16 +67,12 @@ function startCalibration(button, name, surname, mail, goal)
 	{
 		$('#progress').val(msg.count);
 		
+		
 		if(msg.count == 100)
 		{
 			socket.emit('disconnect request');
 		}
 	});
-	
-	socket.on('connect', function()
-	{
-		console.log('Connected to server.')
-    });
 	
 	/*
 	var text = '{ "nome" : "' + name + '", "cognome" : "' + surname + '", "e-mail" : "' + mail + '", "destinazione" : ' + goal + ' }';

@@ -4,7 +4,10 @@ project(hostess_user_registration)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED)
+find_package(catkin REQUIRED COMPONENTS
+	actionlib_msgs
+	cob_people_detection
+)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -98,7 +101,7 @@ find_package(catkin REQUIRED)
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES hostess_user_registration
-#  CATKIN_DEPENDS other_catkin_pkg
+  CATKIN_DEPENDS actionlib_msgs
 #  DEPENDS system_lib
 )
 
@@ -179,3 +182,6 @@ catkin_package(
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+add_executable(server src/server.cpp)
+target_link_libraries(server ${catkin_LIBRARIES})
