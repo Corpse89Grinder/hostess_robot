@@ -29,7 +29,6 @@ def upgrade():
     sa.Column('surname', sa.String(length=64), nullable=True),
     sa.Column('goal_id', sa.Integer(), nullable=True),
     sa.Column('email', sa.String(length=64), nullable=True),
-    sa.Column('calibrated', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['goal_id'], ['goals.id'], ),
     sa.PrimaryKeyConstraint('id')
     )

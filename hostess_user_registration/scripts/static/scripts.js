@@ -54,10 +54,20 @@ function onToggle()
 	}
 }
 
-function startCalibration(button)
+function startCalibration(button, name, surname, mail, goal)
 {
-	disableButton(button);
+	//disableButton(button);
 	button.value = 'Calibrazione in corso...';
+	
+	var text = '{ "nome" : "' + name + '", "cognome" : "' + surname + '", "e-mail" : "' + mail + '", "destinazione" : ' + goal + ' }';
+	
+	var xhttp = new XMLHttpRequest();
+	xhttp.open("POST", "/new_user/start_calibration", false);
+	xhttp.setRequestHeader("Content-Type", "application/json");
+	
+	xhttp.send(text);
+	
+	console.log(xhttp.responseText);
 }
 
 function disableButton(button)
@@ -68,8 +78,6 @@ function disableButton(button)
 function checkEnablingAll(lenght, size)
 {
 	checkEnabling(lenght);
-	
-	console.log(size);
 	
 	if(size == 0)
 	{
@@ -144,8 +152,6 @@ function deleteSelected(type)
 	
 	text = text.slice(0, -1);
 	text += '] }';
-	
-	console.log(text);
 	
 	if(checked != 0 && window.confirm(message))
 	{	

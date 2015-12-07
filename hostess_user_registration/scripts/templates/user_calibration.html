@@ -48,7 +48,7 @@
 			</tr>
 		</table>
 		<div class="page-footer">
-			<input class="btn btn-default" type="button" value="Avvia calibrazione volto" onclick="startCalibration(this);" autocomplete="off" />
+			<input class="btn btn-default" type="button" value="Avvia calibrazione volto" onclick="startCalibration(this, {{ form.name.data }}, {{ form.surname.data }}, {{ form.mail.data }}, {{ goal.id }});" autocomplete="off" />
 			<input class="btn btn-default" type="button" value="Salva nuovo utente" onclick="" disabled="disabled" autocomplete="off" />
 			<input class="btn btn-default" type="button" value="Ritorna al menù principale" onclick="window.location='/index';" />
 			<span class="stretch"></span>
