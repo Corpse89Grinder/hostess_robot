@@ -7,7 +7,7 @@ from wtforms.validators import Required
 from flask_bootstrap import Bootstrap
 from flask.ext.sqlalchemy import SQLAlchemy
 from sqlalchemy import func
-import os, sys
+import os, sys, json
 from flask_wtf import form
 from matplotlib.pyplot import connect
 from sqlalchemy.sql.expression import desc
@@ -25,8 +25,6 @@ from flask.ext.migrate import Migrate, MigrateCommand
 
 script = sys.argv[0]
 sys.argv = [script, 'runserver', '--host', '0.0.0.0']
-
-print sys.argv
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'hard to guess string'
@@ -48,10 +46,6 @@ class AddGoalForm(Form):
     label = StringField('Destinazione')
     x = FloatField('X')
     y = FloatField('Y')
-
-class CheckInForm(Form):
-    mail = StringField('Email')
-    submit = SubmitField('Invia')
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -88,42 +82,48 @@ def new_goal():
         db.session.add(goal)
         db.session.commit()
         return redirect(url_for('.goals'))
-    else:
-        print 'arrivata'
     return render_template('new_goal.html', form=form)
 
-@app.route('/delete_goals')
+@app.route('/delete_goals', methods=['GET', 'POST'])
 def delete_goal():
     return render_template('delete_goals.html', goals=Goal.query.all())
 
 @app.route('/users')
 def users():
-    return render_template('users.html', users=User.query.all())
+    return render_template('users.html', users=User.query.all(), goals=len(Goal.query.all()))
 
-@app.route('/new_user')
+@app.route('/new_user', methods=['GET', 'POST'])
 def new_user():
     form = RegistrationForm()
     form.goal.choices = [(g.id, g.label) for g in Goal.query.all()]
+    if request.method == 'POST' and form.validate():
+        goal = Goal.query.filter_by(id=form.goal.data).first_or_404()
+        return render_template('user_calibration.html', form=form, goal=goal)
     return render_template('new_user.html', form=form)
-    
-@app.route('/new_user/calibration', methods=['POST'])
-def calibration():
-    form = RegistrationForm(request.form)
-    goal = Goal.query.filter_by(id=form.goal.data).first_or_404()
-    return render_template('user_calibration.html', form=form, goal=goal)
 
 @app.route('/delete_users')
 def delete_user():
     return render_template('delete_users.html', users=User.query.all())
 
-@app.route('/checkin', methods=['GET', 'POST'])
-def checkin():
-    form = CheckInForm(request.form)
-    if request.method == 'POST' and form.validate():
-        user = User.query.filter_by(email=form.mail.data).first_or_404()
-        if user is not None:
-            return render_template('checkin.html', user=user)
-    return render_template('register.html', form=form)
+@app.route('/delete_user_entries', methods=['POST'])
+def delete_user_entries():
+    if request.method == 'POST' and request.headers['Content-Type'] == 'application/json':
+        message = json.loads(request.data)
+        for i in message['utenti']:
+            user = User.query.filter_by(id=i).first_or_404()
+            db.session.delete(user)
+            db.session.commit()
+        return 'Users deleted'
+    
+@app.route('/delete_goal_entries', methods=['POST'])
+def delete_goal_entries():
+    if request.method == 'POST' and request.headers['Content-Type'] == 'application/json':
+        message = json.loads(request.data)
+        for i in message['destinazioni']:
+            goal = Goal.query.filter_by(id=i).first_or_404()
+            db.session.delete(goal)
+            db.session.commit()
+        return 'Goals deleted'
 
 @app.route('/')
 def root():

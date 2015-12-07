@@ -25,7 +25,7 @@
 				<table class="table table-hover" id="table">
 				    <thead>
 						<tr>
-							<th>Seleziona</th>
+							<th style="width:1%"><label><input type="checkbox" id="selectAll" autocomplete="off" onClick="toggle(this);"> Seleziona tutti</label></th>
 							<th>ID</th>
 					        <th>Nome</th>
 					        <th>Cognome</th>
@@ -35,8 +35,8 @@
 					<tbody>
 						{% for user in users %}
 						<tr>
-							<td><input type="checkbox" name="checkbox" style="background-color: yellow" autocomplete="off"></td>
-							<td><script>document.write(fixedDigit({{ user.id }}))</script></td>
+							<td><input type="checkbox" name="checkbox" id="checkbox-{{ user.id }}" autocomplete="off" onClick="onToggle(this);"></td>
+							<td><script>document.write(fixedDigit({{ user.id }}));</script></td>
 							<td>{{ user.name }}</td>
 							<td>{{ user.surname }}</td>
 							<td>{{ user.email }}</td>
@@ -47,7 +47,7 @@
 			</div>
 		</div>
 		<div class="page-footer">
-			<input class="btn btn-default" type="button" value="Rimuovi utenti selezionati" onclick="deleteUsers()" />
+			<input class="btn btn-default" type="button" value="Rimuovi utenti selezionati" onclick="deleteUsers();" />
 			<input class="btn btn-default" type="button" value="Ritorna al menù principale" onclick="window.location='/index';" />
 			<span class="stretch"></span>
 		</div>

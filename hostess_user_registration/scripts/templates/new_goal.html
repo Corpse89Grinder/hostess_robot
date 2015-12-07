@@ -21,14 +21,15 @@
 				<form method="POST" id="form">
 					{{ form.hidden_tag() }}
 					{{ wtf.form_errors(form, hiddens="only") }}
-					{{ wtf.form_field(form.label, autocomplete="off") }}
-					{{ wtf.form_field(form.x, autocomplete="off") }}
-					{{ wtf.form_field(form.y, autocomplete="off") }}
+					{{ wtf.form_field(form.label, autocomplete="off", placeholder=form.label.label.text) }}
+					{{ wtf.form_field(form.x, autocomplete="off", placeholder='0.0') }}
+					{{ wtf.form_field(form.y, autocomplete="off", placeholder='0.0') }}
 				</form>
 			</div>
 		</div>
 		<div class="page-footer">
 			<input class="btn btn-default" type="button" value="Aggiungi destinazione" onclick="document.getElementById('form').submit();" />
+			<input class="btn btn-default" type="submit" value="Resetta campi" onclick="document.getElementById('form').reset();" />
 			<input class="btn btn-default" type="button" value="Ritorna al menù principale" onclick="window.location='/index';" />
 			<span class="stretch"></span>
 		</div>
