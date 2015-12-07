@@ -62,12 +62,19 @@ function startCalibration(button, name, surname, mail, goal)
 	var text = '{ "nome" : "' + name + '", "cognome" : "' + surname + '", "e-mail" : "' + mail + '", "destinazione" : ' + goal + ' }';
 	
 	var xhttp = new XMLHttpRequest();
-	xhttp.open("POST", "/new_user/start_calibration", false);
+	xhttp.open("POST", "/new_user/start_calibration", true);
+	
+	xhttp.onreadystatechange = function()
+	{
+		if(xhttp.readyState == 4 && xhttp.status == 200)
+		{
+			console.log(xhttp.responseText);
+		}
+	}
+	
 	xhttp.setRequestHeader("Content-Type", "application/json");
 	
-	xhttp.send(text);
-	
-	console.log(xhttp.responseText);
+	xhttp.send();
 }
 
 function disableButton(button)

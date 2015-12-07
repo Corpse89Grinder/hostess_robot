@@ -18,6 +18,7 @@ from flask.templating import render_template
 from flask.ext.script import Manager
 from flask.ext.migrate import Migrate, MigrateCommand
 from cob_people_detection.msg import addDataAction, addDataGoal
+from actionlib_msgs.msg._GoalStatus import GoalStatus
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
@@ -107,12 +108,6 @@ def user_calibration():
 @app.route('/new_user/start_calibration', methods=['POST'])
 def start_calibration():
     if request.method == 'POST' and request.headers['Content-Type'] == 'application/json':
-        message = json.loads(request.data)
-        name = message['nome']
-        surname = message['cognome']
-        mail = message['e-mail']
-        goal_id = message['destinazione']
-        
         id = db.session.query(db.func.max(User.id)).scalar()
         if id is None:
             id = 1
@@ -123,22 +118,36 @@ def start_calibration():
         id_string = id_string[-8:]
             
         client = actionlib.SimpleActionClient('prova', addDataAction)
-        client.wait_for_server()
+        #client.wait_for_server()
         
         goal = addDataGoal(label=id_string, capture_mode=1, continuous_mode_images_to_capture=100, continuous_mode_delay=0.03)
         
-        client.send_goal(goal, None, None, feedback_cb)
-        
-        client.wait_for_result()
+        client.send_goal(goal, done_cb, None, feedback_cb)
 
-        user = User(id=id, name=name, surname=surname, goal_id=goal_id, email=mail)
-        db.session.add(user)
-        db.session.commit()
+        while True:#sostituire con una duration per avere un timeout
+            if(client.get_state() == GoalStatus.ACTIVE):
+                break
         
-        return 'User added'
+        #user = User(id=id, name=name, surname=surname, goal_id=goal_id, email=mail)
+        #db.session.add(user)
+        #db.session.commit()
+        
+        return 'Calibration started'
 
+def done_cb():
+    print 'ok'
+    
 def feedback_cb():
     print 'ok'
+    
+@app.route('/new_user/save_user', methods=['POST'])
+def save_user():
+    if request.method == 'POST' and request.headers['Content-Type'] == 'application/json':
+        message = json.loads(request.data)
+        name = message['nome']
+        surname = message['cognome']
+        mail = message['e-mail']
+        goal_id = message['destinazione']
     
 @app.route('/delete_users')
 def delete_user():
