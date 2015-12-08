@@ -18,7 +18,7 @@ from dbus.decorators import method
 from numpy import integer, int
 from flask.templating import render_template
 from flask.ext.migrate import Migrate, MigrateCommand
-from cob_people_detection.msg import addDataAction, addDataGoal
+from cob_people_detection.msg import addDataAction, addDataGoal, deleteDataAction, deleteDataGoal
 from flask_socketio import SocketIO, emit, disconnect
 
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -157,7 +157,7 @@ def start_calibration():
     id_string = '00000000' + str(id)
     id_string = id_string[-8:]
         
-    client = actionlib.SimpleActionClient('face_calibration', addDataAction)
+    client = actionlib.SimpleActionClient('add_user', addDataAction)
     client.wait_for_server()
     
     goal = addDataGoal(label=id_string, capture_mode=1, continuous_mode_images_to_capture=100, continuous_mode_delay=0.03)
@@ -194,11 +194,24 @@ def delete_user():
 @app.route('/delete_user_entries', methods=['POST'])
 def delete_user_entries():
     if request.method == 'POST' and request.headers['Content-Type'] == 'application/json; charset=UTF-8':
+        client = actionlib.SimpleActionClient('delete_user', deleteDataAction)
+        client.wait_for_server()
+        
         message = json.loads(request.data)
+        
         for i in message['utenti']:
+            id_string = '00000000' + str(i)
+            id_string = id_string[-8:]
+            
+            goal=deleteDataGoal(delete_mode=2, label=id_string)
+            
+            client.send_goal(goal)
+            client.wait_for_result()
+            
             user = User.query.filter_by(id=i).first_or_404()
             db.session.delete(user)
-            db.session.commit()
+            
+        db.session.commit()
         return 'Ok'
     else:
         return 'Bad'

@@ -13,9 +13,9 @@
 
 {% block body %}
 	{% block scripts %}
-		<script type="text/javascript" src="{{ url_for('.static', filename='scripts.js') }}"></script>
-		<script type="text/javascript" src="{{ url_for('static', filename='socket.io.min.js) }}"></script>
-    	<script type="text/javascript" src="{{ url_for('static', filename='jquery.js') }}"></script>
+		<script type="text/javascript" src="{{ url_for('.static',filename='scripts.js') }}"></script>
+		<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.6/socket.io.min.js"></script>
+    	<!--script type="text/javascript" src="{{ url_for('.static', filename='jquery.js') }}"></script-->
 		{{ super() }}
 	{% endblock %}
 	<div class="container">
@@ -51,7 +51,7 @@
 			</tr>
 		</table>
 		<div class="page-footer">
-			<input class="btn btn-default" type="button" value="Avvia calibrazione volto" onclick="startCalibration(this, {{ form.name.data }}, {{ form.surname.data }}, {{ goal.id }}, {{ form.mail.data }});" autocomplete="off" />
+			<input class="btn btn-default" type="button" value="Avvia calibrazione volto" onclick="startCalibration(this, '{{ form.name.data }}', '{{ form.surname.data }}', {{ goal.id }}, '{{ form.mail.data }}');" autocomplete="off" />
 			<input class="btn btn-default" type="button" value="Ritorna al menù principale" onclick="window.location='/index';" />
 			<span class="stretch"></span>
 		</div>
