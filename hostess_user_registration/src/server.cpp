@@ -5,12 +5,13 @@ typedef actionlib::SimpleActionServer<cob_people_detection::addDataAction> Serve
 
 void execute(const cob_people_detection::addDataGoalConstPtr& goal, Server* as)
 {
-	cob_people_detection::addDataFeedback a;
+	ROS_INFO("Action received!");
+	cob_people_detection::addDataFeedback feedback;
 
-	for(int i = 0; i < goal->continuous_mode_images_to_capture; i++)
+	for(int i = 1; i <= goal->continuous_mode_images_to_capture; i++)
 	{
-		a.images_captured = i;
-		as->publishFeedback(a);
+		feedback.images_captured = i;
+		as->publishFeedback(feedback);
 		ros::Rate(10).sleep();
 	}
 
@@ -21,7 +22,7 @@ int main(int argc, char** argv)
 {
   ros::init(argc, argv, "action_server");
   ros::NodeHandle n;
-  Server server(n, "prova", boost::bind(&execute, _1, &server), false);
+  Server server(n, "face_calibration", boost::bind(&execute, _1, &server), false);
   server.start();
   ros::spin();
   return 0;

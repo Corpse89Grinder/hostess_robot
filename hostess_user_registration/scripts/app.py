@@ -6,7 +6,7 @@ eventlet.monkey_patch()
 import os, sys, json, roslib, rospy, actionlib
 from flask import Flask, render_template, request, redirect, url_for
 from flask.ext.wtf import Form
-from wtforms import StringField, IntegerField, SelectField, SubmitField, FloatField
+from wtforms import StringField, IntegerField, SelectField, SubmitField, FloatField, validators
 from wtforms.validators import Required
 from flask_bootstrap import Bootstrap
 from flask.ext.sqlalchemy import SQLAlchemy
@@ -15,15 +15,11 @@ from flask_wtf import form
 from matplotlib.pyplot import connect
 from sqlalchemy.sql.schema import UniqueConstraint
 from dbus.decorators import method
-from types import NoneType
 from numpy import integer, int
-from sqlalchemy.sql.elements import False_
 from flask.templating import render_template
 from flask.ext.migrate import Migrate, MigrateCommand
 from cob_people_detection.msg import addDataAction, addDataGoal
-from actionlib_msgs.msg._GoalStatus import GoalStatus
 from flask_socketio import SocketIO, emit, disconnect
-from threading import Thread
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
@@ -36,17 +32,6 @@ db = SQLAlchemy(app)
 Bootstrap(app)
 migrate = Migrate(app, db)
 socketio = SocketIO(app, async_mode='eventlet')
-
-class RegistrationForm(Form):
-    name = StringField('Nome')
-    surname = StringField('Cognome')
-    mail = StringField('E-Mail')
-    goal = SelectField('Dove vuoi andare?', choices=[], coerce=int)
-
-class AddGoalForm(Form):
-    label = StringField('Destinazione')
-    x = FloatField('X')
-    y = FloatField('Y')
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -69,6 +54,56 @@ class Goal(db.Model):
 
     def __repr__(self):
         return '<User %r>' % self.label
+
+class RegistrationForm(Form):
+    name = StringField('Nome')
+    surname = StringField('Cognome')
+    mail = StringField('E-Mail')
+    goal = SelectField('Dove vuoi andare?', choices=[(g.id, g.label) for g in Goal.query.all()], coerce=int)
+    
+    def __init__(self, *args, **kwargs):
+        Form.__init__(self, *args, **kwargs)
+    
+    def validate(self):
+        outcome = True
+        
+        rv = Form.validate(self)
+        if not rv:
+            outcome = False
+        
+        if self.name.data == '':
+            self.name.errors.append('Campo obbligatorio')
+            outcome = False
+            
+        if self.surname.data == '':
+            self.surname.errors.append('Campo obbligatorio')
+            outcome = False
+            
+        if self.mail.data == '':
+            self.mail.errors.append('Campo obbligatorio')
+            outcome = False
+        else:
+            mail = User.query.filter_by(email=self.mail.data).first()
+            if mail is not None:
+                self.mail.errors.append('E-Mail presente in database, inserirne una differente')
+                outcome = False
+        
+        found = False
+        for v, _ in self.goal.choices:
+            if self.goal.data == v:
+                found = True
+                break
+        
+        if found == False:
+            self.goal.errors.append('Seleziona una destinazione')
+
+        return outcome
+
+
+class AddGoalForm(Form):
+    label = StringField('Destinazione', [validators.Required()])
+    x = FloatField('X')
+    y = FloatField('Y')
 
 @app.route('/goals')
 def goals():
@@ -95,10 +130,14 @@ def users():
 @app.route('/new_user', methods=['GET', 'POST'])
 def new_user():
     form = RegistrationForm()
-    form.goal.choices = [(g.id, g.label) for g in Goal.query.all()]
-    if request.method == 'POST' and form.validate():
-        return redirect(url_for('.user_calibration'), 307)
-    return render_template('new_user.html', form=form)
+    select = 0
+    if request.method == 'POST':
+        if form.validate():
+            return redirect(url_for('.user_calibration'), 307)
+        else:
+            if form.goal.data is not None:
+                select = form.goal.data
+    return render_template('new_user.html', form=form, select=select)
 
 @app.route('/new_user/calibration', methods=['POST'])
 def user_calibration():
@@ -107,8 +146,8 @@ def user_calibration():
         goal = Goal.query.filter_by(id=form.goal.data).first_or_404()
         return render_template('user_calibration.html', form=form, goal=goal)
     
-@socketio.on('connect', namespace='/test')
-def test_connect():
+@socketio.on('start', namespace='/new_user/calibration')
+def start_calibration():
     id = db.session.query(db.func.max(User.id)).scalar()
     if id is None:
         id = 1
@@ -118,67 +157,35 @@ def test_connect():
     id_string = '00000000' + str(id)
     id_string = id_string[-8:]
         
-    client = actionlib.SimpleActionClient('prova', addDataAction)
+    client = actionlib.SimpleActionClient('face_calibration', addDataAction)
     client.wait_for_server()
-    
-    client.active_cb = active_cb()
     
     goal = addDataGoal(label=id_string, capture_mode=1, continuous_mode_images_to_capture=100, continuous_mode_delay=0.03)
     
-    client.send_goal(goal, None, None, feedback_cb)
-        
-def done_cb(state, count):
-    socketio.emit('my response', {'data': 'Server generated event', 'count': 100}, namespace='/test')
-        
+    client.send_goal(goal, done_cb, active_cb, feedback_cb)
+    
+def done_cb(state, result):
+    socketio.emit('calibrated', namespace='/new_user/calibration')
+    
 def active_cb():
-    socketio.emit('my response', {'data': 'Server generated event', 'count': 0}, namespace='/test')
+    socketio.emit('started', namespace='/new_user/calibration')
     
-def feedback_cb(count):
-    socketio.emit('my response', {'data': 'Server generated event', 'count': count.images_captured}, namespace='/test')
-    
-@socketio.on('disconnect request', namespace='/test')
-def disconnect_request():
-    disconnect()
-    
-@app.route('/new_user/start_calibration', methods=['POST'])
-def start_calibration():
-    if request.method == 'POST' and request.headers['Content-Type'] == 'application/json':
-        id = db.session.query(db.func.max(User.id)).scalar()
-        if id is None:
-            id = 1
-        else:
-            id = id + 1
-            
-        id_string = '00000000' + str(id)
-        id_string = id_string[-8:]
-            
-        client = actionlib.SimpleActionClient('prova', addDataAction)
-        #client.wait_for_server()
-        
-        #goal = addDataGoal(label=id_string, capture_mode=1, continuous_mode_images_to_capture=100, continuous_mode_delay=0.03)
-        
-        #client.send_goal(goal, done_cb, None, feedback_cb)
+def feedback_cb(feedback):
+    socketio.emit('progress', {'images_captured': feedback.images_captured}, namespace='/new_user/calibration')
 
-        count = 0
-        while True:#sostituire con una duration per avere un timeout
-            count += 1
-            feedback_cb(count)
-            rospy.Rate(10).sleep()
-        
-        #user = User(id=id, name=name, surname=surname, goal_id=goal_id, email=mail)
-        #db.session.add(user)
-        #db.session.commit()
-        
-        return 'Calibration started'
+@socketio.on('credentials', namespace='/new_user/calibration')
+def save_user(message):
+    name=message['nome']
+    surname=message['cognome']
+    goal_id=message['destinazione']
+    email=message['email']
     
-@app.route('/new_user/save_user', methods=['POST'])
-def save_user():
-    if request.method == 'POST' and request.headers['Content-Type'] == 'application/json':
-        message = json.loads(request.data)
-        name = message['nome']
-        surname = message['cognome']
-        mail = message['e-mail']
-        goal_id = message['destinazione']
+    user = User(name=name, surname=surname, goal_id=goal_id, email=email)
+    db.session.add(user)
+    db.session.commit()
+
+    emit('saved')
+    disconnect()
     
 @app.route('/delete_users')
 def delete_user():
@@ -186,23 +193,28 @@ def delete_user():
 
 @app.route('/delete_user_entries', methods=['POST'])
 def delete_user_entries():
-    if request.method == 'POST' and request.headers['Content-Type'] == 'application/json':
+    if request.method == 'POST' and request.headers['Content-Type'] == 'application/json; charset=UTF-8':
         message = json.loads(request.data)
         for i in message['utenti']:
             user = User.query.filter_by(id=i).first_or_404()
             db.session.delete(user)
             db.session.commit()
-        return 'Users deleted'
+        return 'Ok'
+    else:
+        return 'Bad'
     
 @app.route('/delete_goal_entries', methods=['POST'])
 def delete_goal_entries():
-    if request.method == 'POST' and request.headers['Content-Type'] == 'application/json':
+    print request.headers['Content-Type']
+    if request.method == 'POST' and request.headers['Content-Type'] == 'application/json; charset=UTF-8':
         message = json.loads(request.data)
         for i in message['destinazioni']:
             goal = Goal.query.filter_by(id=i).first_or_404()
             db.session.delete(goal)
             db.session.commit()
-        return 'Goals deleted'
+        return 'Ok'
+    else:
+        return 'Bad'
 
 @app.route('/')
 def root():

@@ -54,48 +54,56 @@ function onToggle()
 	}
 }
 
-function startCalibration(button, name, surname, mail, goal)
+function setImageSource()
+{
+	image = document.getElementById("stream");
+	
+	image.src = 'http://' + location.hostname + ':8080/stream?topic=/robot/rgb/image_raw';
+}
+
+function startCalibration(button, name, surname, goal, mail)
 {
 	disableButton(button);
-	button.value = 'Calibrazione in corso...';
+	button.value = 'In attesa del server...';
 	
-	var namespace = '/test';
+	var namespace = '/new_user/calibration';
 	
 	var socket = io.connect('http://' + document.domain + ':' + location.port + namespace);
 	
-	socket.on('my response', function(msg)
+	socket.on('started', function()
 	{
-		$('#progress').val(msg.count);
-		
-		
-		if(msg.count == 100)
-		{
-			socket.emit('disconnect request');
-		}
+		button.value = 'Calibrazione in corso...';
 	});
 	
-	/*
-	var text = '{ "nome" : "' + name + '", "cognome" : "' + surname + '", "e-mail" : "' + mail + '", "destinazione" : ' + goal + ' }';
-	
-	var xhttp = new XMLHttpRequest();
-	xhttp.open("POST", "/new_user/start_calibration", true);
-	
-	xhttp.onreadystatechange = function()
+	socket.on('progress', function(msg)
 	{
-		if(xhttp.readyState == 4 && xhttp.status == 200)
-		{
-			console.log(xhttp.responseText);
-		}
-	}
+		$('#progress').val(msg.images_captured);
+	});
 	
-	xhttp.setRequestHeader("Content-Type", "application/json");
+	socket.on('calibrated', function()
+	{
+		socket.emit('credentials', {nome: name, cognome: surname, destinazione: goal, email: mail});
+	});
 	
-	*/
+	socket.on('saved', function()
+	{
+		button.value = 'Calibrazione completata';
+		
+		window.alert('Calibrazione completata correttamente.\nUtente aggiunto al database.');
+		window.location='/users';
+	});
+	
+	socket.emit('start');
 }
 
 function disableButton(button)
 {
 	button.disabled = true;
+}
+
+function enableButton(button)
+{
+	button.disabled = false;
 }
 
 function checkEnablingAll(lenght, size)
@@ -112,7 +120,7 @@ function checkEnablingAll(lenght, size)
 
 function showAlert()
 {
-	window.alert('Nessuna destinazione in memoria. Aggiungi qualche destinazione prima di poter inserire degli utenti!');
+	window.alert('Nessuna destinazione in memoria.\nAggiungi qualche destinazione prima di\npoter inserire degli utenti!');
 }
 
 function checkEnabling(length)
@@ -149,13 +157,13 @@ function deleteSelected(type)
 	{
 		message = 'Sei sicuro di voler eliminare gli utenti selezionati?';
 		text = '{ "utenti" : [';
-		xhttp.open("POST", "/delete_user_entries", false);
+		xhttp.open("POST", "/delete_user_entries", true);
 	}
 	else if(type == 'Goals')
 	{
 		message = 'Sei sicuro di voler eliminare le destinazioni selezionate?';
 		text = '{ "destinazioni" : [';
-		xhttp.open("POST", "/delete_goal_entries", false);
+		xhttp.open("POST", "/delete_goal_entries", true);
 	}
 	
 	var checkboxes = document.getElementsByName("checkbox");
@@ -176,34 +184,42 @@ function deleteSelected(type)
 	text = text.slice(0, -1);
 	text += '] }';
 	
+	xhttp.onreadystatechange = function()
+	{
+		if(xhttp.readyState == 4 && xhttp.status == 200)
+		{
+			console.log(xhttp.responseText);
+			
+			var table = document.getElementById("table");
+			
+			for(i = checkboxes.length - 1; i >= 0; i--)
+			{
+				if(checkboxes[i].checked)
+				{
+					table.deleteRow(i + 1);
+				}
+			}
+			
+			var checkbox = document.getElementById("selectAll");
+			
+			checkbox.indeterminate = false;
+			checkbox.checked = false;
+			
+			if(table.rows.length == 1 && type == 'Users')
+			{
+				window.location = '/users';
+			}
+			else if(table.rows.length == 1 && type == 'Goals')
+			{
+				window.location = '/goals';
+			}
+		}
+	};
+	
 	if(checked != 0 && window.confirm(message))
 	{	
 		//Mandare richiesta di eliminazione al database
-		xhttp.setRequestHeader("Content-Type", "application/json");
+		xhttp.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
 		xhttp.send(text);
-		
-		var table = document.getElementById("table");
-		
-		for(i = checkboxes.length - 1; i >= 0; i--)
-		{
-			if(checkboxes[i].checked)
-			{
-				table.deleteRow(i + 1);
-			}
-		}
-		
-		var checkbox = document.getElementById("selectAll");
-		
-		checkbox.indeterminate = false;
-		checkbox.checked = false;
-	}
-	
-	if(table.rows.length == 1 && type == 'Users')
-	{
-		window.location = '/users';
-	}
-	else if(table.rows.length == 1 && type == 'Goals')
-	{
-		window.location = '/goals';
 	}
 }
