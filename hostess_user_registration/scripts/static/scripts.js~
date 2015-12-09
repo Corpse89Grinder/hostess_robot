@@ -58,7 +58,7 @@ function setImageSource()
 {
 	image = document.getElementById("stream");
 	
-	image.src = 'http://' + location.hostname + ':8080/stream?topic=/cob_people_detection/people_detection_display/face_position_image';
+	image.src = 'http://' + location.hostname + ':8080/stream?topic=/robot/rgb/image_raw';
 }
 
 function startCalibration(button, name, surname, goal, mail)

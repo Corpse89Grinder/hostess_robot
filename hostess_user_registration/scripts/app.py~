@@ -185,7 +185,7 @@ def save_user(message):
     db.session.add(user)
     db.session.commit()
     
-    client = actionlib.SimpleActionClient('/cob_people_detection/face_recognizer/load_model_server', loadModelAction)
+    client = actionlib.SimpleActionClient('load_model', loadModelAction)
     
     if client.wait_for_server(timeout=rospy.Duration(10)):
         goal = loadModelGoal()
@@ -207,7 +207,7 @@ def delete_user():
 @app.route('/delete_user_entries', methods=['POST'])
 def delete_user_entries():
     if request.method == 'POST' and request.headers['Content-Type'] == 'application/json; charset=UTF-8':
-        client = actionlib.SimpleActionClient('/cob_people_detection/face_capture/delete_data_server', deleteDataAction)
+        client = actionlib.SimpleActionClient('delete_user', deleteDataAction)
         
         if client.wait_for_server(timeout=rospy.Duration(10)):
             message = json.loads(request.data)
