@@ -70,8 +70,11 @@ function startCalibration(button, name, surname, goal, mail)
 	
 	var socket = io.connect('http://' + document.domain + ':' + location.port + namespace);
 	
+	var timeout;
+	
 	socket.on('started', function()
 	{
+		clearTimeout(timeout);
 		button.value = 'Calibrazione in corso...';
 	});
 	
@@ -82,18 +85,37 @@ function startCalibration(button, name, surname, goal, mail)
 	
 	socket.on('calibrated', function()
 	{
+		button.value = 'Aggiornamento robot in corso...';
 		socket.emit('credentials', {nome: name, cognome: surname, destinazione: goal, email: mail});
 	});
 	
-	socket.on('saved', function()
+	socket.on('saved', function(msg)
 	{
 		button.value = 'Calibrazione completata';
 		
-		window.alert('Calibrazione completata correttamente.\nUtente aggiunto al database.');
+		if(msg.status == 0)
+		{
+			window.alert('Calibrazione completata correttamente.\nUtente aggiunto al database.');
+		}
+		else if(msg.status == 1 || msg.status == 2)
+		{
+			window.alert('L\'utente è stato calibrato e aggiunto correttamente\nma non è stato possibile aggiornare il robot.\nRiavviare il robot per caricare il modello aggiornato.');
+		}
+		
 		window.location='/users';
 	});
 	
+	socket.on('failed', failedUserAdd);
+	
 	socket.emit('start');
+	
+	timeout = window.setTimeout(failedUserAdd, 10000);
+}
+
+function failedUserAdd()
+{
+	window.alert('Impossibile aggiungere l\'utente al robot.\nControllare che il servizio sia attivo e riprovare.');
+	window.location='/users';
 }
 
 function disableButton(button)
@@ -188,37 +210,42 @@ function deleteSelected(type)
 	{
 		if(xhttp.readyState == 4 && xhttp.status == 200)
 		{
-			console.log(xhttp.responseText);
-			
-			var table = document.getElementById("table");
-			
-			for(i = checkboxes.length - 1; i >= 0; i--)
+			if(xhttp.responseText == 'ok')
 			{
-				if(checkboxes[i].checked)
+				var table = document.getElementById("table");
+			
+				for(i = checkboxes.length - 1; i >= 0; i--)
 				{
-					table.deleteRow(i + 1);
+					if(checkboxes[i].checked)
+					{
+						table.deleteRow(i + 1);
+					}
+				}
+				
+				var checkbox = document.getElementById("selectAll");
+				
+				checkbox.indeterminate = false;
+				checkbox.checked = false;
+				
+				if(table.rows.length == 1 && type == 'Users')
+				{
+					window.location = '/users';
+				}
+				else if(table.rows.length == 1 && type == 'Goals')
+				{
+					window.location = '/goals';
 				}
 			}
-			
-			var checkbox = document.getElementById("selectAll");
-			
-			checkbox.indeterminate = false;
-			checkbox.checked = false;
-			
-			if(table.rows.length == 1 && type == 'Users')
+			else if(xhttp.responseText == 'failed')
 			{
-				window.location = '/users';
-			}
-			else if(table.rows.length == 1 && type == 'Goals')
-			{
-				window.location = '/goals';
+				window.alert('Impossibile eliminare gli utenti dal robot.\nControllare che il servizio sia attivo e riprovare.');
+				window.location='/users';
 			}
 		}
 	};
 	
 	if(checked != 0 && window.confirm(message))
-	{	
-		//Mandare richiesta di eliminazione al database
+	{
 		xhttp.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
 		xhttp.send(text);
 	}

@@ -18,7 +18,7 @@ from dbus.decorators import method
 from numpy import integer, int
 from flask.templating import render_template
 from flask.ext.migrate import Migrate, MigrateCommand
-from cob_people_detection.msg import addDataAction, addDataGoal, deleteDataAction, deleteDataGoal
+from cob_people_detection.msg import addDataAction, addDataGoal, deleteDataAction, deleteDataGoal, loadModelAction, loadModelGoal
 from flask_socketio import SocketIO, emit, disconnect
 
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -158,11 +158,12 @@ def start_calibration():
     id_string = id_string[-8:]
         
     client = actionlib.SimpleActionClient('add_user', addDataAction)
-    client.wait_for_server()
     
-    goal = addDataGoal(label=id_string, capture_mode=1, continuous_mode_images_to_capture=100, continuous_mode_delay=0.03)
-    
-    client.send_goal(goal, done_cb, active_cb, feedback_cb)
+    if client.wait_for_server(timeout=rospy.Duration(10)):
+        goal = addDataGoal(label=id_string, capture_mode=1, continuous_mode_images_to_capture=100, continuous_mode_delay=0.03)
+        client.send_goal(goal, done_cb, active_cb, feedback_cb)
+    else:
+        emit('failed')
     
 def done_cb(state, result):
     socketio.emit('calibrated', namespace='/new_user/calibration')
@@ -183,8 +184,20 @@ def save_user(message):
     user = User(name=name, surname=surname, goal_id=goal_id, email=email)
     db.session.add(user)
     db.session.commit()
+    
+    client = actionlib.SimpleActionClient('load_model', loadModelAction)
+    
+    if client.wait_for_server(timeout=rospy.Duration(10)):
+        goal = loadModelGoal()
+        client.send_goal(goal)
+        
+        if client.wait_for_result(rospy.Duration(10)):
+            emit('saved', {'status': 0})
+        else:
+            emit('saved', {'status': 2})
+    else:
+        emit('saved', {'status': 1})
 
-    emit('saved')
     disconnect()
     
 @app.route('/delete_users')
@@ -195,26 +208,27 @@ def delete_user():
 def delete_user_entries():
     if request.method == 'POST' and request.headers['Content-Type'] == 'application/json; charset=UTF-8':
         client = actionlib.SimpleActionClient('delete_user', deleteDataAction)
-        client.wait_for_server()
         
-        message = json.loads(request.data)
-        
-        for i in message['utenti']:
-            id_string = '00000000' + str(i)
-            id_string = id_string[-8:]
+        if client.wait_for_server(timeout=rospy.Duration(10)):
+            message = json.loads(request.data)
             
-            goal=deleteDataGoal(delete_mode=2, label=id_string)
-            
-            client.send_goal(goal)
-            client.wait_for_result()
-            
-            user = User.query.filter_by(id=i).first_or_404()
-            db.session.delete(user)
-            
-        db.session.commit()
-        return 'Ok'
+            for i in message['utenti']:
+                id_string = '00000000' + str(i)
+                id_string = id_string[-8:]
+                
+                goal=deleteDataGoal(delete_mode=2, label=id_string)
+                
+                client.send_goal(goal)
+                client.wait_for_result()
+                
+                user = User.query.filter_by(id=i).first_or_404()
+                db.session.delete(user)
+                
+            db.session.commit()
+            return 'ok'
+        return 'failed'
     else:
-        return 'Bad'
+        return 'bad'
     
 @app.route('/delete_goal_entries', methods=['POST'])
 def delete_goal_entries():
@@ -225,9 +239,9 @@ def delete_goal_entries():
             goal = Goal.query.filter_by(id=i).first_or_404()
             db.session.delete(goal)
             db.session.commit()
-        return 'Ok'
+        return 'ok'
     else:
-        return 'Bad'
+        return 'bad'
 
 @app.route('/')
 def root():
