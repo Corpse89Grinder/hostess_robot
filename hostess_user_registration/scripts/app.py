@@ -1,12 +1,13 @@
 #!/usr/bin/python
 import eventlet
+from types import NoneType
 
 eventlet.monkey_patch()
 
 import os, sys, json, roslib, rospy, actionlib
 from flask import Flask, render_template, request, redirect, url_for
 from flask.ext.wtf import Form
-from wtforms import StringField, IntegerField, SelectField, SubmitField, FloatField, validators
+from wtforms import StringField, SelectField, FloatField
 from wtforms.validators import Required
 from flask_bootstrap import Bootstrap
 from flask.ext.sqlalchemy import SQLAlchemy
@@ -59,7 +60,7 @@ class RegistrationForm(Form):
     name = StringField('Nome')
     surname = StringField('Cognome')
     mail = StringField('E-Mail')
-    goal = SelectField('Dove vuoi andare?', choices=[(g.id, g.label) for g in Goal.query.all()], coerce=int)
+    goal = SelectField('Dove vuoi andare?', choices=[], coerce=int)
     
     def __init__(self, *args, **kwargs):
         Form.__init__(self, *args, **kwargs)
@@ -95,15 +96,52 @@ class RegistrationForm(Form):
                 break
         
         if found == False:
+            del self.goal.errors[:]
             self.goal.errors.append('Seleziona una destinazione')
 
         return outcome
 
 
 class AddGoalForm(Form):
-    label = StringField('Destinazione', [validators.Required()])
-    x = FloatField('X')
-    y = FloatField('Y')
+    label = StringField('Destinazione')
+    x = StringField('X')
+    y = StringField('Y')
+    
+    def __init__(self, *args, **kwargs):
+        Form.__init__(self, *args, **kwargs)
+    
+    def validate(self):
+        outcome = True
+        
+        rv = Form.validate(self)
+        if not rv:
+            outcome = False
+        
+        if self.label.data == '':
+            self.label.errors.append('Campo obbligatorio')
+            outcome = False
+        
+        if self.x.data == '':
+            self.x.errors.append('Campo obbligatorio')
+            outcome = False
+        else:
+            try:
+                float(self.x.data) if '.' in self.x.data else int(self.x.data)
+            except ValueError:
+                self.x.errors.append('Valore immesso non valido')
+                outcome = False
+            
+        if self.y.data == '':
+            self.y.errors.append('Campo obbligatorio')
+            outcome = False
+        else:
+            try:
+                float(self.y.data) if '.' in self.y.data else int(self.y.data)
+            except ValueError:
+                self.y.errors.append('Valore immesso non valido')
+                outcome = False
+
+        return outcome
 
 @app.route('/goals')
 def goals():
@@ -113,7 +151,7 @@ def goals():
 def new_goal():
     form = AddGoalForm(request.form)
     if request.method == 'POST' and form.validate():
-        goal = Goal(label=form.label.data, x=form.x.data, y=form.y.data)
+        goal = Goal(label=form.label.data, x=float(form.x.data), y=float(form.y.data))
         db.session.add(goal)
         db.session.commit()
         return redirect(url_for('.goals'))
@@ -130,6 +168,7 @@ def users():
 @app.route('/new_user', methods=['GET', 'POST'])
 def new_user():
     form = RegistrationForm()
+    form.goal.choices = [(g.id, g.label) for g in Goal.query.all()]
     select = 0
     if request.method == 'POST':
         if form.validate():

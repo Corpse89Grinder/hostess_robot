@@ -41,9 +41,9 @@ int main(int argc, char** argv)
 	ros::init(argc, argv, "action_server");
 	ros::NodeHandle nh;
 
-	AddDataServer addDataServer(nh, "add_user", boost::bind(&executeAdd, _1, &addDataServer), false);
-	DeleteDataServer deleteDataServer(nh, "delete_user", boost::bind(&executeDelete, _1, &deleteDataServer), false);
-	LoadModelServer loadModelServer(nh, "load_model", boost::bind(&executeLoad, _1, &loadModelServer), false);
+	AddDataServer addDataServer(nh, "/cob_people_detection/face_capture/add_data_server", boost::bind(&executeAdd, _1, &addDataServer), false);
+	DeleteDataServer deleteDataServer(nh, "/cob_people_detection/face_capture/delete_data_server", boost::bind(&executeDelete, _1, &deleteDataServer), false);
+	LoadModelServer loadModelServer(nh, "/cob_people_detection/face_recognizer/load_model_server", boost::bind(&executeLoad, _1, &loadModelServer), false);
 
 	addDataServer.start();
 	deleteDataServer.start();

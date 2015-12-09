@@ -17,6 +17,25 @@ function toggle(source)
 	}
 }
 
+function resetGoalForm()
+{
+	$('div').removeClass("has-error");
+	$('p').empty();
+	document.getElementById("label").defaultValue = "";
+	document.getElementById("x").defaultValue = "";
+	document.getElementById("y").defaultValue = "";
+}
+
+function resetUserForm()
+{
+	$('div').removeClass("has-error");
+	$('p').empty();
+	document.getElementById("name").defaultValue = "";
+	document.getElementById("surname").defaultValue = "";
+	document.getElementById("mail").defaultValue = "";
+	$('#div option[value=0]').attr('selected', 'selected');
+}
+
 function onToggle()
 {
 	var checkbox = document.getElementById("selectAll");

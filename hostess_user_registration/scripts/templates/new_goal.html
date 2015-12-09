@@ -12,6 +12,10 @@
 {% import "bootstrap/wtf.html" as wtf %}
 
 {% block body %}
+	{% block scripts %}
+		<script type="text/javascript" src="{{ url_for('.static',filename='scripts.js') }}"></script>
+		{{ super() }}
+	{% endblock %}
 	<div class="container">
 		<div class="page-header">
 			<h1>Aggiungi nuova destinazione</h1>
@@ -21,9 +25,9 @@
 				<form method="POST" id="form">
 					{{ form.hidden_tag() }}
 					{{ wtf.form_errors(form, hiddens="only") }}
-					{{ wtf.form_field(form.label, autocomplete="off", placeholder=form.label.label.text) }}
-					{{ wtf.form_field(form.x, autocomplete="off", placeholder='0.0') }}
-					{{ wtf.form_field(form.y, autocomplete="off", placeholder='0.0') }}
+					{{ wtf.form_field(form.label, placeholder=form.label.label.text) }}
+					{{ wtf.form_field(form.x, placeholder='0.0') }}
+					{{ wtf.form_field(form.y, placeholder='0.0') }}
 				</form>
 			</div>
 		</div>
@@ -34,4 +38,7 @@
 			<span class="stretch"></span>
 		</div>
 	</div>
+	<script>
+		$("#form").bind("reset", resetGoalForm);
+	</script>
 {% endblock %}
