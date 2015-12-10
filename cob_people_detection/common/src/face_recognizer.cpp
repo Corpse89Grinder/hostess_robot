@@ -152,7 +152,6 @@ unsigned long ipa_PeopleDetector::FaceRecognizer::init(std::string data_director
 	if(m_use_unknown_thresh)
 	{
 		eff_color->activate_unknown_treshold();
-		eff_depth->activate_unknown_treshold();
 	}
 
 	FaceNormalizer::FNConfig fn_cfg;
