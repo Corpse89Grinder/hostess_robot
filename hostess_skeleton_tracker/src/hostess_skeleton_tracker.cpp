@@ -21,6 +21,8 @@ std::map<int, std::pair<ros::Time, ros::Duration> > users_timeouts;
 
 void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator&, XnUserID, void*);
 void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator&, XnUserID, void*);
+void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator&, XnUserID, void*);
+void XN_CALLBACK_TYPE User_BackIntoScene(xn::UserGenerator&, XnUserID, void*);
 void publishTransform(XnUserID const&, XnSkeletonJoint const&, std::string const&, std::string const&);
 void publishHeadTransforms(const std::string&);
 void publishTorsoTransform(const std::string&, int&);
@@ -83,6 +85,8 @@ int main(int argc, char **argv)
 
     XnCallbackHandle hUserCallbacks;
     g_UserGenerator.RegisterUserCallbacks(User_NewUser, User_LostUser, NULL, hUserCallbacks);
+    g_UserGenerator.RegisterToUserExit(User_OutOfScene, NULL, hUserCallbacks);
+    g_UserGenerator.RegisterToUserReEnter(User_BackIntoScene, NULL, hUserCallbacks);
 
 	nRetVal = g_Context.StartGeneratingAll();
 
@@ -161,6 +165,23 @@ void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator& generator, XnUserID nId, 
 	}
 }
 
+void XN_CALLBACK_TYPE User_BackIntoScene(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
+{
+	ROS_INFO("User %d back into scene. Restart tracking.", nId);
+
+	g_UserGenerator.GetSkeletonCap().StopTracking(nId);
+}
+
+void XN_CALLBACK_TYPE User_OutOfScene(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
+{
+	ROS_INFO("User %d out of scene. Stop tracking.", nId);
+
+	if(g_UserGenerator.GetSkeletonCap().IsTracking(nId))
+	{
+		g_UserGenerator.GetSkeletonCap().StopTracking(nId);
+	}
+}
+
 void publishTransform(XnUserID const& user, XnSkeletonJoint const& joint, std::string const& frame_id, std::string const& child_frame_id)
 {
     static tf::TransformBroadcaster br;
@@ -229,7 +250,7 @@ void publishTorsoTransform(const std::string& frame_id, int& skeleton_to_track)
 {
     ros::Time now = ros::Time::now();
 
-	if(checkCenterOfMass(skeleton_to_track))
+	if(checkCenterOfMass(skeleton_to_track) && g_UserGenerator.GetSkeletonCap().IsTracking(skeleton_to_track))
 	{
 		publishTransform(skeleton_to_track, XN_SKEL_TORSO, frame_id, "torso");
 	}
@@ -257,7 +278,7 @@ bool checkCenterOfMass(XnUserID const& user)
 			ros::Time now = ros::Time::now();
 
 			users_timeouts[user].second += now - users_timeouts[user].first;
-			users_timeouts [user].first = now;
+			users_timeouts[user].first = now;
 
 			if(users_timeouts[user].second.sec >= 1)
 			{

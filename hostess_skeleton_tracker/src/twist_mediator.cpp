@@ -6,7 +6,7 @@
 
 //Maximum distance from skeleton head and face recognition points in space
 #define DISTANCE_THRESHOLD 0.1
-#define MINIMUM_ASSOCIATIONS_FOR_TRACKING 1
+#define MINIMUM_ASSOCIATIONS_FOR_TRACKING 10
 
 void lookForEveryHeadTransform(tf::TransformListener&, std::vector<tf::StampedTransform>&, std::string);
 bool findClosestHeadToFace(std::vector<tf::StampedTransform>&, std::string&);
@@ -108,10 +108,6 @@ int main(int argc, char** argv)
 				}
 
 				pub.publish(twist);
-			}
-			else
-			{
-				//Non ho ancora la distanza, se la situazione perdura per molto c'è qualcosa che non va
 			}
 
 			ros::Rate(30).sleep();
