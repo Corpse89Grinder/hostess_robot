@@ -23,29 +23,34 @@
 		</div>
 		<table style="width: 100%">
 			<tr>
-				<td width="50%">
-					<table style="width: 100%">
+				<td width="48%">
+					<table style="width: 100%" class="table">
 						<tr>
-							<th width="50%">Nome:</th>
-							<td width="50%">{{ form.name.data }}</td>
+							<th>Nome:</th>
+							<td width="1%">{{ form.name.data }}</td>
 						</tr>
 						<tr>
-							<th width="50%">Cognome:</th>
-							<td width="50%">{{ form.surname.data }}</td>
+							<th>Cognome:</th>
+							<td width="1%">{{ form.surname.data }}</td>
 						</tr>
 						<tr>
-							<th width="50%">E-mail:</th>
-							<td width="50%">{{ form.mail.data }}</td>
+							<th>E-mail:</th>
+							<td width="1%">{{ form.mail.data }}</td>
 						</tr>
 						<tr>
-							<th width="50%">Goal:</th>
-							<td width="50%">{{ goal.label }}</td>
+							<th>Destinazione:</th>
+							<td width="1%">{{ goal.label }}</td>
+						</tr>
+						<tr>
+							<th></th>
+							<td></td>
 						</tr>
 					</table>
-					<progress id="progress" value="0" max="100">ciao</progress>
+					<progress id="progress" style="width: 100%" value="0" max="100"></progress>
 				</td>
-				<td>
-					<img id="stream" width="100%" >
+				<td width="4%"></td>
+				<td width="48%" align="right">
+					<img id="stream" width="100%" alt="Calibration stream missing">
 				</td>
 			</tr>
 		</table>

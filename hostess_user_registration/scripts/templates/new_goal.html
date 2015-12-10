@@ -20,17 +20,21 @@
 		<div class="page-header">
 			<h1>Aggiungi nuova destinazione</h1>
 		</div>
-		<div class="row">
-			<div class="col-md-12">
-				<form method="POST" id="form">
-					{{ form.hidden_tag() }}
-					{{ wtf.form_errors(form, hiddens="only") }}
-					{{ wtf.form_field(form.label, placeholder=form.label.label.text) }}
-					{{ wtf.form_field(form.x, placeholder='0.0') }}
-					{{ wtf.form_field(form.y, placeholder='0.0') }}
-				</form>
-			</div>
-		</div>
+		<table style="width: 100%">
+			<tr>
+				<td width="48%">
+					<form method="POST" id="form">
+						{{ form.hidden_tag() }}
+						{{ wtf.form_errors(form, hiddens="only") }}
+						{{ wtf.form_field(form.label, placeholder=form.label.label.text) }}
+						{{ wtf.form_field(form.x, placeholder='0.0') }}
+						{{ wtf.form_field(form.y, placeholder='0.0') }}
+					</form>
+				</td>
+				<td width="4%"></td>
+				<td width="48%"></td>
+			</tr>
+		</table>
 		<div class="page-footer">
 			<input class="btn btn-default" type="button" value="Aggiungi destinazione" onclick="document.getElementById('form').submit();" />
 			<input class="btn btn-default" type="submit" value="Resetta campi" onclick="document.getElementById('form').reset();" />
