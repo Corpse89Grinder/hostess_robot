@@ -127,7 +127,7 @@ protected:
 	/// @return Returns false, when threshold is exceeded.
 	inline bool is_known(double& distance, double& threshold)
 	{
-		if (distance >= threshold)
+		if (distance >= threshold * 1.1)
 			return false;
 		return true;
 	}
