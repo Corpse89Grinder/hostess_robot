@@ -74,6 +74,9 @@
 #include <sensor_msgs/Image.h>
 #include <cob_perception_msgs/DetectionArray.h>
 
+#include <tf/transform_broadcaster.h>
+#include <sstream>
+
 // services
 //#include <cob_people_detection/DetectPeople.h>
 
@@ -629,6 +632,38 @@ void DetectionTrackerNode::inputCallback(const cob_perception_msgs::DetectionArr
 	prepareFacePositionMessage(face_position_msg_out, image_recording_time);
 	face_position_msg_out.header.stamp = face_position_msg_in->header.stamp;
 	face_position_publisher_.publish(face_position_msg_out);
+
+	static tf::TransformBroadcaster br;
+
+	int counter = 1;
+
+	for(int i = 0; i < face_position_msg_out.detections.size(); i++)
+	{
+		tf::StampedTransform transform;
+		std::ostringstream oss;
+
+		cob_perception_msgs::Detection det = face_position_msg_out.detections[i];
+
+		if(det.detector == "face")
+		{
+			oss << det.label;
+
+			if(det.label == "Unknown")
+			{
+				oss << "_" << counter;
+				counter++;
+			}
+
+			transform.child_frame_id_ = oss.str();
+			transform.frame_id_ = face_position_msg_in->detections[i].header.frame_id;
+			transform.stamp_ = det.header.stamp;
+
+			transform.setOrigin(tf::Vector3(det.pose.pose.position.x, det.pose.pose.position.y, det.pose.pose.position.z));
+			transform.setRotation(tf::Quaternion(det.pose.pose.orientation.x, det.pose.pose.orientation.y, det.pose.pose.orientation.z, det.pose.pose.orientation.w));
+
+			br.sendTransform(transform);
+		}
+	}
 
 	//  // display
 	//  if (debug_ == true)

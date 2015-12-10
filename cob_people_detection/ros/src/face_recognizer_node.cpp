@@ -75,9 +75,6 @@
 
 #include <sys/time.h>
 
-#include <tf/transform_broadcaster.h>
-#include <sstream>
-
 using namespace ipa_PeopleDetector;
 
 FaceRecognizerNode::FaceRecognizerNode(ros::NodeHandle nh) :
@@ -377,9 +374,6 @@ void FaceRecognizerNode::facePositionsCallback(const cob_perception_msgs::ColorD
 
 	// --- convert color image patches of head regions and contained face bounding boxes ---
 
-	static tf::TransformBroadcaster br;
-	std::vector<tf::StampedTransform> transforms;
-
 	cv_bridge::CvImageConstPtr cv_ptr;
 	std::vector<cv::Mat> heads_color_images;
 	heads_color_images.resize(face_positions->head_detections.size());
@@ -532,37 +526,12 @@ void FaceRecognizerNode::facePositionsCallback(const cob_perception_msgs::ColorD
 				det.header = face_positions->header;
 				// add to message
 				detection_msg.detections.push_back(det);
-
-				tf::StampedTransform transform;
-				std::ostringstream oss;
-
-				oss << det.label;
-
-				if(det.label == "Unknown")
-				{
-					oss << "_" << counter;
-					counter++;
-				}
-
-				transform.child_frame_id_ = oss.str();
-				transform.frame_id_ = det.header.frame_id;
-				transform.stamp_ = det.header.stamp;
-
-				transform.setOrigin(tf::Vector3(det.pose.pose.position.x, det.pose.pose.position.y, det.pose.pose.position.z));
-				transform.setRotation(tf::Quaternion(det.pose.pose.orientation.x, det.pose.pose.orientation.y, det.pose.pose.orientation.z, det.pose.pose.orientation.w));
-
-				transforms.push_back(transform);
 			}
 		}
 	}
 
 	// publish message
 	face_recognition_publisher_.publish(detection_msg);
-
-	for(int i = 0; i < transforms.size(); i++)
-	{
-		br.sendTransform(transforms[i]);
-	}
 
 	if (display_timing_ == true)
 		ROS_INFO("%d FaceRecognition: Time stamp of pointcloud message: %f. Delay: %f.", face_positions->header.seq, face_positions->header.stamp.toSec(),
