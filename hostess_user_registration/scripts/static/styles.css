@@ -19,3 +19,34 @@
     font-size: 0;
     line-height: 0
 }
+
+#map-container
+{
+	position: relative;
+}
+
+#map
+{
+	position: absolute;
+	top: 0px;
+	left: 0px;
+	z-index: 0;
+}
+
+#locator
+{
+	position: absolute;
+	top: 0px;
+	left: 0px;
+	width: 10%;
+	heght: 10%;
+	z-index: 1;
+}
+
+#transparent
+{
+	position: absolute;
+	top: 0px;
+	left: 0px;
+	z-index: 2;
+}

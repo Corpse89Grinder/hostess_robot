@@ -22,7 +22,7 @@
 		</div>
 		<table style="width: 100%">
 			<tr>
-				<td width="48%" style="vertical-align: top;">
+				<td width="49%" style="vertical-align: top;">
 					<form method="POST" id="form">
 						{{ form.hidden_tag() }}
 						{{ wtf.form_errors(form, hiddens="only") }}
@@ -31,13 +31,17 @@
 						{{ wtf.form_field(form.y, placeholder='0.0') }}
 					</form>
 				</td>
-				<td width="4%"></td>
-				<td width="48%"><img id="map" src="{{ url_for('.static', filename=map.filename) }}" width="100%" draggable="false"></td>
+				<td width="2%"></td>
+				<td width="49%" id="map-container">
+					<img id="map" src="{{ url_for('.static', filename=map.filename) }}" width="100%" draggable="false">
+					<img id="locator" hidden="hidden" src="{{ url_for('.static', filename='location.png') }}" width="100%" draggable="false">
+					<img id="transparent" src="{{ url_for('.static', filename='transparent.png') }}" draggable="false">
+				</td>
 			</tr>
 		</table>
 		<div class="page-footer">
 			<input class="btn btn-default" type="button" value="Aggiungi destinazione" onclick="document.getElementById('form').submit();" />
-			<input class="btn btn-default" type="submit" value="Resetta campi" onclick="document.getElementById('form').reset();" />
+			<input class="btn btn-default" type="submit" value="Resetta campi" onclick="document.getElementById('form').reset(); $('#locator').attr('hidden', true);" />
 			<input class="btn btn-default" type="button" value="Ritorna al menù principale" onclick="window.location='/index';" />
 			<span class="stretch"></span>
 		</div>
@@ -49,11 +53,16 @@
 		
 		var dragging = false;
 		
-		$('#map').mousedown(function(e)
+		$('#transparent').mousedown(function(e)
 		{
+			$('#locator').attr("hidden", false);
+			
 			var offset = $(this).offset();
 			var percentX = (e.pageX - offset.left) / this.width;
 			var percentY = (e.pageY - offset.top) / this.height;
+			
+			$('#locator').css("left", (e.pageX - offset.left) - ($('#locator').width() / 2));
+			$('#locator').css("top", (e.pageY - offset.top) - $('#locator').height());
 			
 			var x = minX + ((maxX - minX) * percentX);
 			var y = minY + ((maxY - minY) * percentY);
@@ -64,12 +73,12 @@
 			dragging = true;
 		});
 		
-		$('#map').mouseup(function()
+		$('#transparent').mouseup(function()
 		{
 			dragging = false;
 		});
 		
-		$('#map').mouseleave(function()
+		$('#transparent').mouseleave(function()
 		{
 			dragging = false;
 		});
@@ -79,13 +88,16 @@
 		var minY = parseFloat({{ map.minY }});
 		var maxY = parseFloat({{ map.maxY }});
 		
-		$('#map').mousemove(function(e)
+		$('#transparent').mousemove(function(e)
 		{
 			if(dragging)
 			{
 				var offset = $(this).offset();
 				var percentX = (e.pageX - offset.left) / this.width;
 				var percentY = (e.pageY - offset.top) / this.height;
+				
+				$('#locator').css("left", (e.pageX - offset.left) - ($('#locator').width() / 2));
+				$('#locator').css("top", (e.pageY - offset.top) - $('#locator').height());
 				
 				var x = minX + ((maxX - minX) * percentX);
 				var y = minY + ((maxY - minY) * percentY);
@@ -94,5 +106,16 @@
 				$("#y").val(y.toPrecision(y.toString().indexOf('.') + 2));
 			}
 		});
+		
+		function resizer()
+		{
+			$('#transparent').attr('height', $('#map').height());
+			$('#transparent').attr('width', $('#map').width());
+			$('#map-container').attr('height', $('#map').height());
+		}
+		
+		window.addEventListener("resize", resizer);
+		
+		resizer();
 	</script>
 {% endblock %}
