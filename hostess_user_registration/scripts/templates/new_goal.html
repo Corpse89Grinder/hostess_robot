@@ -16,7 +16,7 @@
 		<script type="text/javascript" src="{{ url_for('.static',filename='scripts.js') }}"></script>
 		{{ super() }}
 	{% endblock %}
-	<div class="container">
+	<div class="container" id="container">
 		<div class="page-header">
 			<h1>Aggiungi nuova destinazione</h1>
 		</div>
@@ -33,9 +33,9 @@
 				</td>
 				<td width="2%"></td>
 				<td width="49%" id="map-container">
-					<img id="map" src="{{ url_for('.static', filename=map.filename) }}" width="100%" draggable="false">
-					<img id="locator" hidden="hidden" src="{{ url_for('.static', filename='location.png') }}" width="100%" draggable="false">
-					<img id="transparent" src="{{ url_for('.static', filename='transparent.png') }}" draggable="false">
+					<img id="map" src="{{ url_for('.static', filename=map.filename) }}" width="100%">
+					<img id="locator" hidden="hidden" src="{{ url_for('.static', filename='location.png') }}">
+					<img id="transparent" src="{{ url_for('.static', filename='transparent.png') }}" width="100%" draggable="false">
 				</td>
 			</tr>
 		</table>
@@ -51,15 +51,23 @@
 		$("#x").prop('readonly', true);
 		$("#y").prop('readonly', true);
 		
+		$("#transparent").on('dragstart', function()
+		{
+			return false;
+		});
+		
 		var dragging = false;
+		
+		var percentX;
+		var percentY;
 		
 		$('#transparent').mousedown(function(e)
 		{
 			$('#locator').attr("hidden", false);
 			
 			var offset = $(this).offset();
-			var percentX = (e.pageX - offset.left) / this.width;
-			var percentY = (e.pageY - offset.top) / this.height;
+			percentX = (e.pageX - offset.left) / this.width;
+			percentY = (e.pageY - offset.top) / this.height;
 			
 			$('#locator').css("left", (e.pageX - offset.left) - ($('#locator').width() / 2));
 			$('#locator').css("top", (e.pageY - offset.top) - $('#locator').height());
@@ -73,15 +81,15 @@
 			dragging = true;
 		});
 		
-		$('#transparent').mouseup(function()
+		function stopDragging()
 		{
 			dragging = false;
-		});
+		}
 		
-		$('#transparent').mouseleave(function()
-		{
-			dragging = false;
-		});
+		$('#transparent').mouseup(stopDragging);
+		
+		$('#container').mouseleave(stopDragging);
+		$('#container').mouseup(stopDragging);
 		
 		var minX = parseFloat({{ map.minX }});
 		var maxX = parseFloat({{ map.maxX }});
@@ -93,8 +101,8 @@
 			if(dragging)
 			{
 				var offset = $(this).offset();
-				var percentX = (e.pageX - offset.left) / this.width;
-				var percentY = (e.pageY - offset.top) / this.height;
+				percentX = (e.pageX - offset.left) / this.width;
+				percentY = (e.pageY - offset.top) / this.height;
 				
 				$('#locator').css("left", (e.pageX - offset.left) - ($('#locator').width() / 2));
 				$('#locator').css("top", (e.pageY - offset.top) - $('#locator').height());
@@ -110,7 +118,13 @@
 		function resizer()
 		{
 			$('#transparent').attr('height', $('#map').height());
-			$('#transparent').attr('width', $('#map').width());
+			
+			var x = $('#transparent').width() * percentX;
+			var y = $('#transparent').height() * percentY;
+			
+			$('#locator').css("left", x - ($('#locator').width() / 2));
+			$('#locator').css("top", y - $('#locator').height());
+			
 			$('#map-container').attr('height', $('#map').height());
 		}
 		
