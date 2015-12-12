@@ -32,7 +32,7 @@
 					</form>
 				</td>
 				<td width="4%"></td>
-				<td width="48%"></td>
+				<td width="48%"><img id="map" src="{{ url_for('.static', filename=map.filename) }}" width="100%"></td>
 			</tr>
 		</table>
 		<div class="page-footer">
@@ -44,5 +44,22 @@
 	</div>
 	<script>
 		$("#form").bind("reset", resetGoalForm);
+		$("#map").click(function(e)
+		{
+			var minX = parseFloat({{ map.minX }});
+			var maxX = parseFloat({{ map.maxX }});
+			var minY = parseFloat({{ map.minY }});
+			var maxY = parseFloat({{ map.maxY }});
+			
+			var offset = $(this).offset();
+			var percentX = (e.pageX - offset.left) / this.width;
+			var percentY = (e.pageY - offset.top) / this.height;
+			
+			var x = minX + ((maxX - minX) * percentX);
+			var y = minY + ((maxY - minY) * percentY);
+			
+			$("#x").val(x.toPrecision(x.toString().indexOf('.') + 2));
+			$("#y").val(y.toPrecision(y.toString().indexOf('.') + 2));
+		});
 	</script>
 {% endblock %}

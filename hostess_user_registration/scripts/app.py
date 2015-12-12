@@ -9,8 +9,14 @@ from flask.ext.sqlalchemy import SQLAlchemy
 from sqlalchemy import func
 from sqlalchemy.sql.schema import UniqueConstraint
 from flask_socketio import emit, disconnect, SocketIO
-import json, roslib, rospy, actionlib
+import json, roslib, rospy, actionlib, xml.etree.ElementTree as ET, os
 from cob_people_detection.msg import addDataAction, addDataGoal, deleteDataAction, deleteDataGoal, loadModelAction, loadModelGoal
+from collections import namedtuple
+
+e = ET.parse(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'config/map.xml')).getroot()
+
+Map = namedtuple('Map', 'filename minX maxX minY maxY')
+map = Map(e.find('filename').text, e.find('x').find('min').text, e.find('x').find('max').text, e.find('y').find('min').text, e.find('y').find('max').text)
 
 app = Flask(__name__)
 
@@ -142,7 +148,7 @@ def new_goal():
             db.session.add(goal)
             
         return redirect(url_for('.goals'))
-    return render_template('new_goal.html', form=form)
+    return render_template('new_goal.html', form=form, map=map)
 
 @app.route('/delete_goals', methods=['GET', 'POST'])
 def delete_goal():
