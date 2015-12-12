@@ -6,7 +6,7 @@
 
 //Maximum distance from skeleton head and face recognition points in space
 #define DISTANCE_THRESHOLD 0.1
-#define MINIMUM_ASSOCIATIONS_FOR_TRACKING 10
+#define MINIMUM_ASSOCIATIONS_FOR_TRACKING 5
 
 void lookForEveryHeadTransform(tf::TransformListener&, std::vector<tf::StampedTransform>&, std::string);
 bool findClosestHeadToFace(std::vector<tf::StampedTransform>&, std::string&);

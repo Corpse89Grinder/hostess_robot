@@ -24,26 +24,22 @@
 		<table style="width: 100%">
 			<tr>
 				<td width="48%">
-					<table style="width: 100%" class="table">
+					<table style="width: 100%; border-bottom: 1px solid #ddd;" class="table table-hover">
 						<tr>
 							<th>Nome:</th>
-							<td width="1%">{{ form.name.data }}</td>
+							<td align="right">{{ form.name.data }}</td>
 						</tr>
 						<tr>
 							<th>Cognome:</th>
-							<td width="1%">{{ form.surname.data }}</td>
+							<td align="right">{{ form.surname.data }}</td>
 						</tr>
 						<tr>
 							<th>E-mail:</th>
-							<td width="1%">{{ form.mail.data }}</td>
+							<td align="right">{{ form.mail.data }}</td>
 						</tr>
 						<tr>
 							<th>Destinazione:</th>
-							<td width="1%">{{ goal.label }}</td>
-						</tr>
-						<tr>
-							<th></th>
-							<td></td>
+							<td align="right">{{ goal.label }}</td>
 						</tr>
 					</table>
 					<progress id="progress" style="width: 100%" value="0" max="100"></progress>

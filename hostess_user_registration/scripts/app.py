@@ -1,37 +1,23 @@
 #!/usr/bin/python
 import eventlet
-from types import NoneType
-
 eventlet.monkey_patch()
-
-import os, sys, json, roslib, rospy, actionlib
 from flask import Flask, render_template, request, redirect, url_for
 from flask.ext.wtf import Form
 from wtforms import StringField, SelectField, FloatField
-from wtforms.validators import Required
 from flask_bootstrap import Bootstrap
 from flask.ext.sqlalchemy import SQLAlchemy
 from sqlalchemy import func
-from flask_wtf import form
-from matplotlib.pyplot import connect
 from sqlalchemy.sql.schema import UniqueConstraint
-from dbus.decorators import method
-from numpy import integer, int
-from flask.templating import render_template
-from flask.ext.migrate import Migrate, MigrateCommand
+from flask_socketio import emit, disconnect, SocketIO
+import json, roslib, rospy, actionlib
 from cob_people_detection.msg import addDataAction, addDataGoal, deleteDataAction, deleteDataGoal, loadModelAction, loadModelGoal
-from flask_socketio import SocketIO, emit, disconnect
-
-basedir = os.path.abspath(os.path.dirname(__file__))
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'hard to guess string'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'data.sqlite')
-app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
+
+app.config.from_pyfile('config/config.py', silent = False)
+
 db = SQLAlchemy(app)
 Bootstrap(app)
-migrate = Migrate(app, db)
 socketio = SocketIO(app, async_mode='eventlet')
 
 class User(db.Model):
@@ -291,5 +277,5 @@ def index():
     return render_template('index.html')
 
 if __name__ == '__main__':
-    rospy.init_node('hostess_management')
+    rospy.init_node('hostess_management', disable_signals=True)
     socketio.run(app, debug=True, host='0.0.0.0')
