@@ -14,7 +14,7 @@ from cob_people_detection.msg import addDataAction, addDataGoal, deleteDataActio
 
 app = Flask(__name__)
 
-app.config.from_pyfile('config/config.py', silent = False)
+app.config.from_pyfile('config/config.py', silent=False)
 
 db = SQLAlchemy(app)
 Bootstrap(app)
@@ -138,8 +138,9 @@ def new_goal():
     form = AddGoalForm(request.form)
     if request.method == 'POST' and form.validate():
         goal = Goal(label=form.label.data, x=float(form.x.data), y=float(form.y.data))
-        db.session.add(goal)
-        db.session.commit()
+        with app.app_context():
+            db.session.add(goal)
+            
         return redirect(url_for('.goals'))
     return render_template('new_goal.html', form=form)
 
@@ -207,8 +208,9 @@ def save_user(message):
     email=message['email']
     
     user = User(name=name, surname=surname, goal_id=goal_id, email=email)
-    db.session.add(user)
-    db.session.commit()
+    
+    with app.app_context():
+        db.session.add(user)
     
     client = actionlib.SimpleActionClient('/cob_people_detection/face_recognizer/load_model_server', loadModelAction)
     
@@ -247,9 +249,10 @@ def delete_user_entries():
                 client.wait_for_result()
                 
                 user = User.query.filter_by(id=i).first_or_404()
-                db.session.delete(user)
                 
-            db.session.commit()
+                with app.app_context():
+                    db.session.delete(user)
+        
             return 'ok'
         return 'failed'
     else:
@@ -257,13 +260,14 @@ def delete_user_entries():
     
 @app.route('/delete_goal_entries', methods=['POST'])
 def delete_goal_entries():
-    print request.headers['Content-Type']
     if request.method == 'POST' and request.headers['Content-Type'] == 'application/json; charset=UTF-8':
         message = json.loads(request.data)
         for i in message['destinazioni']:
             goal = Goal.query.filter_by(id=i).first_or_404()
-            db.session.delete(goal)
-            db.session.commit()
+            
+            with app.app_context():
+                db.session.delete(goal)
+                
         return 'ok'
     else:
         return 'bad'
@@ -278,4 +282,4 @@ def index():
 
 if __name__ == '__main__':
     rospy.init_node('hostess_management', disable_signals=True)
-    socketio.run(app, debug=True, host='0.0.0.0')
+    socketio.run(app, host='0.0.0.0')
