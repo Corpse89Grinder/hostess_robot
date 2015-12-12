@@ -22,7 +22,7 @@
 		</div>
 		<table style="width: 100%">
 			<tr>
-				<td width="48%">
+				<td width="48%" style="vertical-align: top;">
 					<form method="POST" id="form">
 						{{ form.hidden_tag() }}
 						{{ wtf.form_errors(form, hiddens="only") }}
@@ -44,6 +44,8 @@
 	</div>
 	<script>
 		$("#form").bind("reset", resetGoalForm);
+		$("#x").prop('readonly', true);
+		$("#y").prop('readonly', true);
 		$("#map").click(function(e)
 		{
 			var minX = parseFloat({{ map.minX }});
