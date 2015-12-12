@@ -69,6 +69,11 @@
 			dragging = false;
 		});
 		
+		$('#map').mouseleave(function()
+		{
+			dragging = false;
+		});
+		
 		var minX = parseFloat({{ map.minX }});
 		var maxX = parseFloat({{ map.maxX }});
 		var minY = parseFloat({{ map.minY }});
