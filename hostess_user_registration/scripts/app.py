@@ -286,4 +286,4 @@ def index():
 
 if __name__ == '__main__':
     rospy.init_node('hostess_management', disable_signals=True)
-    socketio.run(app, host='0.0.0.0')
+    app.run(host='0.0.0.0', port=8090)
