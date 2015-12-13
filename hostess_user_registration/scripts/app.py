@@ -15,6 +15,7 @@ from collections import namedtuple
 
 f = open(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'config/map.yaml'))
 map = yaml.safe_load(f)
+f.close()
 
 app = Flask(__name__)
 
@@ -286,4 +287,4 @@ def index():
 
 if __name__ == '__main__':
     rospy.init_node('hostess_management', disable_signals=True)
-    app.run(host='0.0.0.0', port=8090)
+    app.run(host='0.0.0.0', port=5000)
