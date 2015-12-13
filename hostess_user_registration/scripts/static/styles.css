@@ -45,7 +45,9 @@
 
 #transparent
 {
-	position: relative;
+	position: absolute;
+	top: 0px;
+	left: 0px;
 	z-index: 2;
 	user-drag: none;
 	-moz-user-select: none;
