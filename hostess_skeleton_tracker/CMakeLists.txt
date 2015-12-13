@@ -7,6 +7,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 find_package(orocos_kdl REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
 	geometry_msgs
+	std_msgs
 	roscpp
 	roslib
 	tf
@@ -48,9 +49,9 @@ target_link_libraries(hostess_skeleton_tracker
 
 add_executable(twist_mediator src/twist_mediator.cpp)
 target_link_libraries(twist_mediator ${catkin_LIBRARIES})
+
+add_executable(dynamixel_mediator src/dynamixel_mediator.cpp)
+target_link_libraries(dynamixel_mediator ${catkin_LIBRARIES})
 				     
 add_executable(identity_setter src/identity_setter.cpp)
 target_link_libraries(identity_setter ${catkin_LIBRARIES})
-
-add_executable(follow_me src/follow_me.cpp)
-target_link_libraries(follow_me ${catkin_LIBRARIES})
