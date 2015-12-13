@@ -9,14 +9,12 @@ from flask.ext.sqlalchemy import SQLAlchemy
 from sqlalchemy import func
 from sqlalchemy.sql.schema import UniqueConstraint
 from flask_socketio import emit, disconnect, SocketIO
-import json, roslib, rospy, actionlib, xml.etree.ElementTree as ET, os
+import json, roslib, rospy, actionlib, yaml, os
 from cob_people_detection.msg import addDataAction, addDataGoal, deleteDataAction, deleteDataGoal, loadModelAction, loadModelGoal
 from collections import namedtuple
 
-e = ET.parse(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'config/map.xml')).getroot()
-
-Map = namedtuple('Map', 'filename minX maxX minY maxY')
-map = Map(e.find('filename').text, e.find('x').find('min').text, e.find('x').find('max').text, e.find('y').find('min').text, e.find('y').find('max').text)
+f = open(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'config/map.yaml'))
+map = yaml.safe_load(f)
 
 app = Flask(__name__)
 

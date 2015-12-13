@@ -33,7 +33,7 @@
 				</td>
 				<td width="2%"></td>
 				<td width="49%" id="map-container">
-					<img id="map" src="{{ url_for('.static', filename=map.filename) }}" width="100%">
+					<img id="map" src="{{ url_for('.static', filename=map.image) }}" width="100%">
 					<img id="locator" hidden="hidden" src="{{ url_for('.static', filename='location.png') }}">
 					<img id="transparent" src="{{ url_for('.static', filename='transparent.png') }}" width="100%" draggable="false">
 				</td>
@@ -56,6 +56,13 @@
 			return false;
 		});
 		
+		var minX = parseFloat({{ map.origin[0] }});
+		var minY = parseFloat({{ map.origin[1] }});
+		var resolution = parseFloat({{ map.resolution }});
+		
+		var maxX;
+		var maxY;
+		
 		var dragging = false;
 		
 		var percentX;
@@ -67,7 +74,7 @@
 			
 			var offset = $(this).offset();
 			percentX = (e.pageX - offset.left) / this.width;
-			percentY = (e.pageY - offset.top) / this.height;
+			percentY = 1 - ((e.pageY - offset.top) / this.height);
 			
 			$('#locator').css("left", (e.pageX - offset.left) - ($('#locator').width() / 2));
 			$('#locator').css("top", (e.pageY - offset.top) - $('#locator').height());
@@ -75,8 +82,8 @@
 			var x = minX + ((maxX - minX) * percentX);
 			var y = minY + ((maxY - minY) * percentY);
 			
-			$("#x").val(x.toPrecision(x.toString().indexOf('.') + 2));
-			$("#y").val(y.toPrecision(y.toString().indexOf('.') + 2));
+			$("#x").val(Math.max(0, x).toFixed(2).toString());
+			$("#y").val(Math.max(0, y).toFixed(2).toString());
 			
 			dragging = true;
 		});
@@ -91,18 +98,13 @@
 		$('#container').mouseleave(stopDragging);
 		$('#container').mouseup(stopDragging);
 		
-		var minX = parseFloat({{ map.minX }});
-		var maxX = parseFloat({{ map.maxX }});
-		var minY = parseFloat({{ map.minY }});
-		var maxY = parseFloat({{ map.maxY }});
-		
 		$('#transparent').mousemove(function(e)
 		{
 			if(dragging)
 			{
 				var offset = $(this).offset();
 				percentX = (e.pageX - offset.left) / this.width;
-				percentY = (e.pageY - offset.top) / this.height;
+				percentY = 1 - ((e.pageY - offset.top) / this.height);
 				
 				$('#locator').css("left", (e.pageX - offset.left) - ($('#locator').width() / 2));
 				$('#locator').css("top", (e.pageY - offset.top) - $('#locator').height());
@@ -110,8 +112,8 @@
 				var x = minX + ((maxX - minX) * percentX);
 				var y = minY + ((maxY - minY) * percentY);
 				
-				$("#x").val(x.toPrecision(x.toString().indexOf('.') + 2));
-				$("#y").val(y.toPrecision(y.toString().indexOf('.') + 2));
+				$("#x").val(Math.max(0, x).toFixed(2).toString());
+				$("#y").val(Math.max(0, y).toFixed(2).toString());
 			}
 		});
 		
@@ -120,7 +122,7 @@
 			$('#transparent').attr('height', $('#map').height());
 			
 			var x = $('#transparent').width() * percentX;
-			var y = $('#transparent').height() * percentY;
+			var y = $('#transparent').height() * (1 - percentY);
 			
 			$('#locator').css("left", x - ($('#locator').width() / 2));
 			$('#locator').css("top", y - $('#locator').height());
@@ -131,5 +133,8 @@
 		window.addEventListener("resize", resizer);
 		
 		resizer();
+		
+		maxX = minX + (resolution * document.getElementById('map').naturalWidth);
+		maxY = minY + (resolution * document.getElementById('map').naturalHeight);
 	</script>
 {% endblock %}
