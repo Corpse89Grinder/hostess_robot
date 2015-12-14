@@ -31,8 +31,6 @@ int main(int argc, char** argv)
 
 	PanController pan_controller(nh);
 
-	pan_controller.sendCommand();
-
     while(!ros::param::get("user_to_track", user_to_track) && nh.ok())
     {
     	ros::Duration(1).sleep();

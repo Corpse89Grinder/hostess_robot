@@ -53,6 +53,13 @@ void PanController::sendCommand()
 
 	dxio->setMultiPosVel(v);
 
+	pv_int.clear();
+	pv_int.push_back(3000);
+	pv_int.push_back(55);
+	v_int.push_back(pv_int);
+
+	dxio->setMultiPosVel(v_int);
+
 	//pan_pos = pan_home_pos;
 }
 
