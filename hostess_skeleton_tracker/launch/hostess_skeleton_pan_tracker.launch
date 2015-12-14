@@ -1,0 +1,5 @@
+<launch>
+	<group ns="hostess_skeleton_tracker">
+		<node pkg="hostess_skeleton_tracker" type="prova_pan" name="prova_pan" output="screen" />
+	</group>
+</launch>

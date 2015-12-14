@@ -4,6 +4,7 @@
 #include <sstream>
 #include <limits>
 
+
 //Maximum distance from skeleton head and face recognition points in space
 #define DISTANCE_THRESHOLD 0.1
 #define MINIMUM_ASSOCIATIONS_FOR_TRACKING 5

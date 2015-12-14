@@ -19,6 +19,8 @@
   <build_depend>roscpp</build_depend>
   <build_depend>roslib</build_depend>
   <build_depend>tf</build_depend>
+  <build_depend>cyton_wrapper</build_depend>
+  <build_depend>pluginlib</build_depend>
 
   <run_depend>libopenni-dev</run_depend>
   <run_depend>libusb-1.0-dev</run_depend>
@@ -29,4 +31,6 @@
   <run_depend>roscpp</run_depend>
   <run_depend>roslib</run_depend>
   <run_depend>tf</run_depend>
+  <run_depend>cyton_wrapper</run_depend>
+  <run_depend>pluginlib</run_depend>
 </package>

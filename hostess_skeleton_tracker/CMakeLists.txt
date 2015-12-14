@@ -11,7 +11,9 @@ find_package(catkin REQUIRED COMPONENTS
 	roscpp
 	roslib
 	tf
-	cob_perception_msgs	
+	cob_perception_msgs
+	cyton_wrapper
+	pluginlib
 )
 # Find OpenNI
 find_package(PkgConfig)
@@ -21,7 +23,8 @@ catkin_package()
 
 include_directories(${catkin_INCLUDEDIR}
 		    ${OpenNI_INCLUDEDIR}
-		    ${orocos_kdl_INCLUDE_DIRS})
+		    ${orocos_kdl_INCLUDE_DIRS}
+		    ${cyton_wrapper_INCLUDE_DIRS})
 
 link_directories(${catkin_LIBRARY_DIRS})
 link_directories(${orocos_kdl_LIBRARY_DIRS})
@@ -55,3 +58,6 @@ target_link_libraries(dynamixel_mediator ${catkin_LIBRARIES})
 				     
 add_executable(identity_setter src/identity_setter.cpp)
 target_link_libraries(identity_setter ${catkin_LIBRARIES})
+
+add_executable(prova_pan src/prova_pan.cpp)
+target_link_libraries(prova_pan ${catkin_LIBRARIES})
