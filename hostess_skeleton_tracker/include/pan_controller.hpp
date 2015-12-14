@@ -10,16 +10,22 @@ class PanController
 	private:
 		ros::NodeHandle private_nh_;
 
-		boost::shared_ptr <pluginlib::ClassLoader<dynamixelIO_wrapper_base::DynamixelIO_Base> > dxio_loader;
+		boost::shared_ptr<pluginlib::ClassLoader<dynamixelIO_wrapper_base::DynamixelIO_Base> > dxio_loader;
 
 		boost::shared_ptr<dynamixelIO_wrapper_base::DynamixelIO_Base> dxio;
 
 		int mDeviceIndex, mBaudnum, mUpdateRate;
 		std::string mYamlPath;
 
+		double extremeLeft, extremeRight;
+
 	public:
 		PanController(ros::NodeHandle&);
-		void sendCommand();
+		~PanController();
+		void goHome();
+		void standStill();
+		void turnRight();
+		void turnLeft();
 };
 
 #endif /* PAN_CONTROLLER_HPP_ */

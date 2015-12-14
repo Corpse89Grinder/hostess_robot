@@ -1,5 +1,7 @@
 #include "pan_controller.hpp"
 
+#define SPEED 1.0
+
 PanController::PanController(ros::NodeHandle& nh): private_nh_("~")
 {
 	private_nh_.param("DeviceIndex", mDeviceIndex, 1);
@@ -33,26 +35,64 @@ PanController::PanController(ros::NodeHandle& nh): private_nh_("~")
 	{
 		ROS_ERROR("The plugin_loader failed to load for some reason. Error: %s", e.what());
 	}
+
+	extremeRight = (dxio->getMinAngle(0) - 2048) * 0.0015339804;	//Estrema destra del motore
+	extremeLeft = (dxio->getMaxAngle(0) - 2048) * 0.0015339804;	//Estrema sinistra del motore
 }
 
-void PanController::sendCommand()
+PanController::~PanController()
 {
-	int16_t pan_inc=15, pan_home_pos=2048; //incrementa di  4.4 gradi
-	int16_t pan_pos;
-	bool exit_ = false;
+	dxio->stop();
+}
 
+void PanController::goHome()
+{
 	std::vector<std::vector<double> > v;
 	std::vector<double> pv;
-	std::vector<std::vector<int16_t> > v_int;  
-	std::vector<int16_t> pv_int;
 
 	pv.clear();
 	pv.push_back(0.0);
-	pv.push_back(0.6);
+	pv.push_back(SPEED);
 	v.push_back(pv);
 
 	dxio->setMultiPosVel(v);
-
-	//pan_pos = pan_home_pos;
 }
 
+void PanController::standStill()
+{
+	std::vector<std::vector<double> > v;
+	std::vector<double> pv;
+
+	pv.clear();
+	pv.push_back(0.0);
+	pv.push_back(0.0);
+	v.push_back(pv);
+
+	dxio->setMultiPosVel(v);
+}
+
+void PanController::turnLeft()
+{
+	std::vector<std::vector<double> > v;
+	std::vector<double> pv;
+
+	pv.clear();
+	pv.push_back(extremeLeft);
+	pv.push_back(SPEED);
+	v.push_back(pv);
+
+	dxio->setMultiPosVel(v);
+}
+
+void PanController::turnRight()
+{
+	std::vector<std::vector<double> > v;
+	std::vector<double> pv;
+
+	pv.clear();
+	pv.push_back(extremeRight);
+	pv.push_back(SPEED);
+	v.push_back(pv);
+
+	dxio->setMultiPosVel(v);
+}

@@ -2,7 +2,6 @@
 #include <tf/transform_listener.h>
 #include <sstream>
 #include <limits>
-#include <std_msgs/Float64.h>
 #include "pan_controller.hpp"
 
 //Maximum distance from skeleton head and face recognition points in space
@@ -29,20 +28,16 @@ int main(int argc, char** argv)
 
 	ROS_INFO("Waiting for user identity.");
 
-	PanController pan_controller(nh);
-
-	pan_controller.sendCommand();
-
     while(!ros::param::get("user_to_track", user_to_track) && nh.ok())
     {
     	ros::Duration(1).sleep();
     }
 
+    PanController pan_controller(nh);
+
     tf::TransformListener listener;
 
     int skeleton_to_track = 0;
-
-    ros::Publisher pub = nh.advertise<std_msgs::Float64>("/pan_controller/command", 1);
 
     while(nh.ok())
     {
@@ -63,9 +58,7 @@ int main(int argc, char** argv)
 				break;
 			}
 
-			geometry_msgs::Twist twist;
-			twist.linear.x = twist.angular.z = 0;
-			pub.publish(twist);
+			pan_controller.standStill();
 
 			ros::Rate(30).sleep();
 		}
@@ -88,20 +81,20 @@ int main(int argc, char** argv)
 
 				//TODO Ho la distanza, in base ad essa restituisco la percentuale di velocità del robot.
 
-				std_msgs::Float64 command;
-
-				if(transform.getOrigin().getY() > 0.2)
+				if(transform.getOrigin().getY() > 0.1)
 				{
 					//Giro a sinistra
-					command.data = 0.5;
+					pan_controller.turnLeft();
 				}
-				else if(transform.getOrigin().getY() < -0.2)
+				else if(transform.getOrigin().getY() < -0.1)
 				{
 					//Giro a destra
-					command.data = -0.5;
+					pan_controller.turnRight();
 				}
-
-				pub.publish(command);
+				else
+				{
+					pan_controller.standStill();
+				}
 			}
 
 			ros::Rate(30).sleep();

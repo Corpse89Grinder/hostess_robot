@@ -1,9 +1,8 @@
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
+#include <geometry_msgs/Twist.h>
 #include <sstream>
 #include <limits>
-#include <std_msgs/Float64.h>
-#include "pan_controller.hpp"
 
 //Maximum distance from skeleton head and face recognition points in space
 #define DISTANCE_THRESHOLD 0.1
@@ -19,7 +18,7 @@ std::map<std::string, ros::Time> last_stamp;
 
 int main(int argc, char** argv)
 {
-	ros::init(argc, argv, "twist_mediator");
+	ros::init(argc, argv, "follow_me");
 
 	ros::NodeHandle nh;
 	std::string user_to_track;
@@ -28,8 +27,6 @@ int main(int argc, char** argv)
 	nh.getParam("camera_frame_id", frame_id);
 
 	ROS_INFO("Waiting for user identity.");
-
-	PanController pan_controller(nh);
 
     while(!ros::param::get("user_to_track", user_to_track) && nh.ok())
     {
@@ -40,7 +37,7 @@ int main(int argc, char** argv)
 
     int skeleton_to_track = 0;
 
-    ros::Publisher pub = nh.advertise<std_msgs::Float64>("/pan_controller/command", 1);
+    ros::Publisher pub = nh.advertise<geometry_msgs::Twist>("/kobra/cmd_vel", 1);
 
     while(nh.ok())
     {
@@ -82,24 +79,35 @@ int main(int argc, char** argv)
 
 			if(lookForSpecificBodyTransform(listener, frame_id, skeleton_to_track_frame, transform))
 			{
-				//double distance = std::sqrt(std::pow(transform.getOrigin().getX(), 2) + std::pow(transform.getOrigin().getY(), 2) + std::pow(transform.getOrigin().getZ(), 2));
+				double distance = std::sqrt(std::pow(transform.getOrigin().getX(), 2) + std::pow(transform.getOrigin().getY(), 2) + std::pow(transform.getOrigin().getZ(), 2));
 
 				//TODO Ho la distanza, in base ad essa restituisco la percentuale di velocità del robot.
 
-				std_msgs::Float64 command;
+				geometry_msgs::Twist twist;
+
+				if(distance < 1.35)
+				{
+					//Mi allontano
+					twist.linear.x = -0.4;
+				}
+				else if(distance > 1.65)
+				{
+					//Mi avvicino
+					twist.linear.x = 0.4;
+				}
 
 				if(transform.getOrigin().getY() > 0.2)
 				{
 					//Giro a sinistra
-					command.data = 0.5;
+					twist.angular.z = 0.5;
 				}
 				else if(transform.getOrigin().getY() < -0.2)
 				{
 					//Giro a destra
-					command.data = -0.5;
+					twist.angular.z = -0.5;
 				}
 
-				pub.publish(command);
+				pub.publish(twist);
 			}
 
 			ros::Rate(30).sleep();
