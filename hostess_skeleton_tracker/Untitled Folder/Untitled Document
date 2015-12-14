@@ -1,0 +1,15 @@
+<!---->
+<launch>
+
+
+<node name="hostess_pan_controller" pkg="cyton_wrapper" type="hostess_pan_controller" output="screen">
+
+<param name="DeviceIndex" type="int" value="0"/>
+<param name="Baudnum" type="int" value="34"/>
+<!--<param name="Baudnum" type="int" value="1"/> -->
+<param name="UpdateRate" type="int" value="20"/>
+<param name="YamlPath" type="string" value="/home/rob/virgil_ws/src/cyton_wrapper/config/pan_joint.yaml"/>
+</node>
+
+
+</launch>

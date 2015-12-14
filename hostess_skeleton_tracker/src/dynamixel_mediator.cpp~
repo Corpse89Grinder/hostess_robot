@@ -88,12 +88,12 @@ int main(int argc, char** argv)
 				if(transform.getOrigin().getY() > 0.2)
 				{
 					//Giro a sinistra
-					command.data = 0.5;
+					command = 0.5;
 				}
 				else if(transform.getOrigin().getY() < -0.2)
 				{
 					//Giro a destra
-					command.data = -0.5;
+					command = -0.5;
 				}
 
 				pub.publish(command);
