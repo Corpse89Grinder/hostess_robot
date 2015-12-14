@@ -19,12 +19,16 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(PkgConfig)
 pkg_check_modules(OpenNI REQUIRED libopenni)
 
-catkin_package()
+catkin_package(
+	INCLUDE_DIRS include
+)
 
-include_directories(${catkin_INCLUDEDIR}
-		    ${OpenNI_INCLUDEDIR}
-		    ${orocos_kdl_INCLUDE_DIRS}
-		    ${cyton_wrapper_INCLUDE_DIRS})
+include_directories(
+	include
+	${catkin_INCLUDEDIR}
+    ${OpenNI_INCLUDEDIR}
+    ${orocos_kdl_INCLUDE_DIRS}
+    ${cyton_wrapper_INCLUDE_DIRS})
 
 link_directories(${catkin_LIBRARY_DIRS})
 link_directories(${orocos_kdl_LIBRARY_DIRS})
@@ -52,12 +56,13 @@ target_link_libraries(hostess_skeleton_tracker
 
 add_executable(twist_mediator src/twist_mediator.cpp)
 target_link_libraries(twist_mediator ${catkin_LIBRARIES})
-
-add_executable(dynamixel_mediator src/dynamixel_mediator.cpp)
-target_link_libraries(dynamixel_mediator ${catkin_LIBRARIES})
 				     
 add_executable(identity_setter src/identity_setter.cpp)
 target_link_libraries(identity_setter ${catkin_LIBRARIES})
 
-add_executable(prova_pan src/prova_pan.cpp)
-target_link_libraries(prova_pan ${catkin_LIBRARIES})
+add_library(pan_controller
+	src/pan_controller.cpp
+)
+
+add_executable(dynamixel_mediator src/dynamixel_mediator.cpp)
+target_link_libraries(dynamixel_mediator pan_controller ${catkin_LIBRARIES})

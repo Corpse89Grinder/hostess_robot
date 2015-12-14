@@ -1,9 +1,9 @@
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
-#include <std_msgs/Float64.h>
 #include <sstream>
 #include <limits>
-
+#include <std_msgs/Float64.h>
+#include "pan_controller.hpp"
 
 //Maximum distance from skeleton head and face recognition points in space
 #define DISTANCE_THRESHOLD 0.1
@@ -28,6 +28,8 @@ int main(int argc, char** argv)
 	nh.getParam("camera_frame_id", frame_id);
 
 	ROS_INFO("Waiting for user identity.");
+
+	PanController pan_controller(nh);
 
     while(!ros::param::get("user_to_track", user_to_track) && nh.ok())
     {
