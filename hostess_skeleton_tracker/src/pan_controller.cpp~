@@ -52,7 +52,7 @@ void PanController::goHome()
 
 	pv.clear();
 	pv.push_back(0.0);
-	pv.push_back(MAX_SPEED);
+	pv.push_back(SPEED);
 	v.push_back(pv);
 
 	dxio->setMultiPosVel(v);
@@ -78,7 +78,7 @@ void PanController::turnLeft(double speed)
 
 	pv.clear();
 	pv.push_back(extremeLeft);
-	pv.push_back(std::min(MAX_SPEED, speed));
+	pv.push_back(Math.min(MAX_SPEED, speed));
 	v.push_back(pv);
 
 	dxio->setMultiPosVel(v);
@@ -91,7 +91,7 @@ void PanController::turnRight(double speed)
 
 	pv.clear();
 	pv.push_back(extremeRight);
-	pv.push_back(std::min(MAX_SPEED, speed));
+	pv.push_back(Math.min(MAX_SPEED, speed));
 	v.push_back(pv);
 
 	dxio->setMultiPosVel(v);

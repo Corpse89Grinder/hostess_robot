@@ -24,8 +24,8 @@ class PanController
 		~PanController();
 		void goHome();
 		void standStill();
-		void turnRight(double);
-		void turnLeft(double);
+		void turnRight();
+		void turnLeft();
 };
 
 #endif /* PAN_CONTROLLER_HPP_ */

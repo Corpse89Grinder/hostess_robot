@@ -84,12 +84,12 @@ int main(int argc, char** argv)
 				if(transform.getOrigin().getY() > 0.1)
 				{
 					//Giro a sinistra
-					pan_controller.turnLeft(fabs(2 * transform.getOrigin().getY()));
+					pan_controller.turnLeft(2 * transform.getOrigin().getY());
 				}
 				else if(transform.getOrigin().getY() < -0.1)
 				{
 					//Giro a destra
-					pan_controller.turnRight(fabs(2 * transform.getOrigin().getY()));
+					pan_controller.turnRight(2 * transform.getOrigin().getY());
 				}
 				else
 				{
