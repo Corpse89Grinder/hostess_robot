@@ -23,6 +23,7 @@ void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator&, XnUserID, void*);
 void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator&, XnUserID, void*);
 void XN_CALLBACK_TYPE User_OutOfScene(xn::UserGenerator&, XnUserID, void*);
 void XN_CALLBACK_TYPE User_BackIntoScene(xn::UserGenerator&, XnUserID, void*);
+XnUInt32 calibrationData;
 void publishTransform(XnUserID const&, XnSkeletonJoint const&, std::string const&, std::string const&);
 void publishHeadTransforms(const std::string&);
 void publishTorsoTransform(const std::string&, int&);
@@ -143,7 +144,15 @@ void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator& generator, XnUserID nId, v
 {
 	ROS_INFO("New User %d.", nId);
 
-	g_UserGenerator.GetSkeletonCap().LoadCalibrationDataFromFile(nId, genericUserCalibrationFileName.c_str());
+	if(calibrationData == NULL)
+	{
+		g_UserGenerator.GetSkeletonCap().LoadCalibrationDataFromFile(nId, genericUserCalibrationFileName.c_str());
+		g_UserGenerator.GetSkeletonCap().SaveCalibrationData(nId, calibrationData);
+	}
+	else
+	{
+		g_UserGenerator.GetSkeletonCap().LoadCalibrationData(nId, calibrationData);
+	}
 
 	int skeleton_to_track;
 	ros::param::get("skeleton_to_track", skeleton_to_track);
@@ -169,7 +178,7 @@ void XN_CALLBACK_TYPE User_BackIntoScene(xn::UserGenerator& generator, XnUserID 
 {
 	ROS_INFO("User %d back into scene. Restart tracking.", nId);
 
-	g_UserGenerator.GetSkeletonCap().StopTracking(nId);
+	g_UserGenerator.GetSkeletonCap().StartTracking(nId);
 }
 
 void XN_CALLBACK_TYPE User_OutOfScene(xn::UserGenerator& generator, XnUserID nId, void* pCookie)

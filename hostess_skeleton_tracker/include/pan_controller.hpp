@@ -19,10 +19,13 @@ class PanController
 
 		double extremeLeft, extremeRight;
 
+		bool homed = false;
+
 	public:
 		PanController(ros::NodeHandle&);
 		~PanController();
 		void goHome();
+		bool isHome();
 		void standStill();
 		void turnRight(double);
 		void turnLeft(double);

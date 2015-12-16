@@ -1,6 +1,6 @@
 #include "pan_controller.hpp"
 
-#define MAX_SPEED 0.8 
+#define MAX_SPEED 1.0
 
 PanController::PanController(ros::NodeHandle& nh): private_nh_("~")
 {
@@ -38,6 +38,8 @@ PanController::PanController(ros::NodeHandle& nh): private_nh_("~")
 
 	extremeRight = (dxio->getMinAngle(0) - 2048) * 0.0015339804;	//Estrema destra del motore
 	extremeLeft = (dxio->getMaxAngle(0) - 2048) * 0.0015339804;	//Estrema sinistra del motore
+
+	goHome();
 }
 
 PanController::~PanController()
@@ -56,6 +58,28 @@ void PanController::goHome()
 	v.push_back(pv);
 
 	dxio->setMultiPosVel(v);
+
+	double presentPosition;
+
+	do
+	{
+		dxio->getPresentPosition(0, presentPosition);
+	}
+	while(presentPosition != 0);
+
+	homed = true;
+}
+
+bool PanController::isHome()
+{
+	if(homed)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 void PanController::standStill()

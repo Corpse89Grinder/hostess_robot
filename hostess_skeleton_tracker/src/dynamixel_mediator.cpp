@@ -33,6 +33,13 @@ int main(int argc, char** argv)
 	std::string frame_id("camera_depth_frame");
 	nh.getParam("camera_frame_id", frame_id);
 
+	PanController pan_controller(nh);
+
+	while(!pan_controller.isHome())
+	{
+		ros::Duration(0.5).sleep();
+	}
+
 	ROS_INFO("Waiting for user identity.");
 
     while(!ros::param::get("user_to_track", user_to_track) && nh.ok())
@@ -47,8 +54,6 @@ int main(int argc, char** argv)
 
     ros::Subscriber twistSubscriber = nh.subscribe(topic_to_subscribe, 1, twistCallback);
     pub = nh.advertise<geometry_msgs::Twist>(topic_to_advertise, 1);
-
-    PanController pan_controller(nh);
 
     tf::TransformListener listener;
 
@@ -99,7 +104,7 @@ int main(int argc, char** argv)
 				{
 					//Giro a sinistra
 					speed_to_rotate.pop_front();
-					speed_to_rotate.push_back(fabs(2 * transform.getOrigin().getY()));
+					speed_to_rotate.push_back(fabs(3 * transform.getOrigin().getY()));
 
 					double speed = 0;
 
@@ -115,7 +120,7 @@ int main(int argc, char** argv)
 				{
 					//Giro a destra
 					speed_to_rotate.pop_front();
-					speed_to_rotate.push_back(fabs(2 * transform.getOrigin().getY()));
+					speed_to_rotate.push_back(fabs(3 * transform.getOrigin().getY()));
 
 					double speed = 0;
 
