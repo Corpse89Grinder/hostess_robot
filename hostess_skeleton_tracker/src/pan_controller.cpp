@@ -63,8 +63,12 @@ void PanController::standStill()
 	std::vector<std::vector<double> > v;
 	std::vector<double> pv;
 
+	double presentPosition;
+
+	dxio->getPresentPosition(0, presentPosition);
+
 	pv.clear();
-	pv.push_back(0.0);
+	pv.push_back(presentPosition);
 	pv.push_back(0.0);
 	v.push_back(pv);
 

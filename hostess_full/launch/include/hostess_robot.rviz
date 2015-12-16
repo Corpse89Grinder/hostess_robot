@@ -54,10 +54,14 @@ Visualization Manager:
       Value: true
     - Class: rviz/TF
       Enabled: true
-      Frame Timeout: 1
+      Frame Timeout: 5
       Frames:
+        00000004:
+          Value: true
         All Enabled: true
-        base_link:
+        Unknown_1:
+          Value: true
+        Unknown_2:
           Value: true
         camera_depth_frame:
           Value: true
@@ -69,7 +73,27 @@ Visualization Manager:
           Value: true
         camera_rgb_optical_frame:
           Value: true
-        odom:
+        head_1:
+          Value: true
+        head_2:
+          Value: true
+        head_3:
+          Value: true
+        head_4:
+          Value: true
+        head_5:
+          Value: true
+        head_6:
+          Value: true
+        torso_1:
+          Value: true
+        torso_2:
+          Value: true
+        torso_3:
+          Value: true
+        torso_4:
+          Value: true
+        torso_6:
           Value: true
       Marker Scale: 1
       Name: TF
@@ -81,9 +105,36 @@ Visualization Manager:
           camera_depth_frame:
             camera_depth_optical_frame:
               {}
+            head_1:
+              {}
+            head_2:
+              {}
+            head_3:
+              {}
+            head_4:
+              {}
+            head_5:
+              {}
+            head_6:
+              {}
+            torso_1:
+              {}
+            torso_2:
+              {}
+            torso_3:
+              {}
+            torso_4:
+              {}
+            torso_6:
+              {}
           camera_rgb_frame:
             camera_rgb_optical_frame:
-              {}
+              00000004:
+                {}
+              Unknown_1:
+                {}
+              Unknown_2:
+                {}
       Update Interval: 0
       Value: true
     - Class: rviz/Image

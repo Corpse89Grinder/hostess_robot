@@ -2,19 +2,26 @@
 #include <tf/transform_listener.h>
 #include <sstream>
 #include <limits>
+#include <geometry_msgs/Twist.h>
 #include "pan_controller.hpp"
 
 //Maximum distance from skeleton head and face recognition points in space
 #define DISTANCE_THRESHOLD 0.1
 #define MINIMUM_ASSOCIATIONS_FOR_TRACKING 5
+#define MAX_MEAN 10
 
 void lookForEveryHeadTransform(tf::TransformListener&, std::vector<tf::StampedTransform>&, std::string);
 bool findClosestHeadToFace(std::vector<tf::StampedTransform>&, std::string&);
 bool lookForSpecificBodyTransform(tf::TransformListener&, std::string, std::string, tf::StampedTransform&);
 int changeFrameAndReturnIndex(std::string&);
+void twistCallback(geometry_msgs::Twist);
 
 std::map<std::string, std::pair<ros::Time, int> > skeletons;
 std::map<std::string, ros::Time> last_stamp;
+
+double ratio;
+
+ros::Publisher pub;
 
 int main(int argc, char** argv)
 {
@@ -33,11 +40,20 @@ int main(int argc, char** argv)
     	ros::Duration(1).sleep();
     }
 
+    std::string topic_to_subscribe("/kobra/tracker_cmd_vel");
+    nh.getParam("topic_to_subscribe", topic_to_subscribe);
+    std::string topic_to_advertise("/kobra/locomotion_cmd_vel2");
+	nh.getParam("topic_to_advertise", topic_to_advertise);
+
+    ros::Subscriber twistSubscriber = nh.subscribe(topic_to_subscribe, 1, twistCallback);
+    pub = nh.advertise<geometry_msgs::Twist>(topic_to_advertise, 1);
+
     PanController pan_controller(nh);
 
     tf::TransformListener listener;
 
     int skeleton_to_track = 0;
+    std::deque<double> speed_to_rotate(MAX_MEAN, 0);
 
     while(nh.ok())
     {
@@ -77,23 +93,69 @@ int main(int argc, char** argv)
 
 			if(lookForSpecificBodyTransform(listener, frame_id, skeleton_to_track_frame, transform))
 			{
-				//double distance = std::sqrt(std::pow(transform.getOrigin().getX(), 2) + std::pow(transform.getOrigin().getY(), 2) + std::pow(transform.getOrigin().getZ(), 2));
-
 				//TODO Ho la distanza, in base ad essa restituisco la percentuale di velocità del robot.
 
-				if(transform.getOrigin().getY() > 0.1)
+				if(transform.getOrigin().getY() > 0.05)
 				{
 					//Giro a sinistra
-					pan_controller.turnLeft(fabs(2 * transform.getOrigin().getY()));
+					speed_to_rotate.pop_front();
+					speed_to_rotate.push_back(fabs(2 * transform.getOrigin().getY()));
+
+					double speed = 0;
+
+					for(int i = 0; i < MAX_MEAN; i++)
+					{
+						speed += speed_to_rotate[i] / MAX_MEAN;
+					}
+
+					pan_controller.turnLeft(speed);
+					ROS_INFO("Turning left at speed %f.", speed);
 				}
-				else if(transform.getOrigin().getY() < -0.1)
+				else if(transform.getOrigin().getY() < -0.05)
 				{
 					//Giro a destra
-					pan_controller.turnRight(fabs(2 * transform.getOrigin().getY()));
+					speed_to_rotate.pop_front();
+					speed_to_rotate.push_back(fabs(2 * transform.getOrigin().getY()));
+
+					double speed = 0;
+
+					for(int i = 0; i < MAX_MEAN; i++)
+					{
+						speed += speed_to_rotate[i] / MAX_MEAN;
+					}
+
+					pan_controller.turnRight(speed);
+					ROS_INFO("Turning right at speed %f.", speed);
 				}
 				else
 				{
+					speed_to_rotate.pop_front();
+					speed_to_rotate.push_back(0);
 					pan_controller.standStill();
+				}
+
+				double distance = std::sqrt(std::pow(transform.getOrigin().getX(), 2) + std::pow(transform.getOrigin().getY(), 2) + std::pow(transform.getOrigin().getZ(), 2));
+
+				if(distance >= 0 && distance <= 1.5)
+				{
+					ratio = 1;
+				}
+				else if(distance > 1.5 && distance <= 2.5)
+				{
+					ratio = 1 - (distance - 1.5);
+				}
+				else if(distance > 2.5)
+				{
+					ratio = 0;
+				}
+
+				if(ratio < 0)
+				{
+					ratio = 0;
+				}
+				else if(ratio > 1)
+				{
+					ratio = 1;
 				}
 			}
 
@@ -211,4 +273,16 @@ int changeFrameAndReturnIndex(std::string& frame)
 	frame = oss.str();
 
 	return index;
+}
+
+void twistCallback(geometry_msgs::Twist oldTwist)
+{
+	geometry_msgs::Twist newTwist;
+
+	newTwist.linear.x = oldTwist.linear.x * ratio;
+	newTwist.angular.z = oldTwist.angular.z * ratio;
+
+	pub.publish(newTwist);
+
+	return;
 }
