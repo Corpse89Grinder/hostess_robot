@@ -64,6 +64,12 @@ int main(int argc, char** argv)
 
     tf::Transform panTransform;
     panTransform.setOrigin(tf::Vector3(0, 0, 0.05));
+
+    tf::Transform change_frame;
+	change_frame.setOrigin(tf::Vector3(0, 0, 0));
+	change_frame.setRotation(tf::Quaternion(0, 0, 0, 1));
+
+	panTransform = change_frame * panTransform;
     tf::Quaternion panOrientation;
 
     while(nh.ok())
