@@ -8,7 +8,7 @@
 //Maximum distance from skeleton head and face recognition points in space
 #define DISTANCE_THRESHOLD 0.1
 #define MINIMUM_ASSOCIATIONS_FOR_TRACKING 5
-#define MAX_MEAN 10
+#define MAX_MEAN 5
 
 void lookForEveryHeadTransform(tf::TransformListener&, std::vector<tf::StampedTransform>&, std::string);
 bool findClosestHeadToFace(std::vector<tf::StampedTransform>&, std::string&);
@@ -25,7 +25,7 @@ ros::Publisher pub;
 
 int main(int argc, char** argv)
 {
-	ros::init(argc, argv, "twist_mediator");
+	ros::init(argc, argv, "dynamixel_mediator");
 
 	ros::NodeHandle nh;
 	std::string user_to_track;
@@ -99,12 +99,13 @@ int main(int argc, char** argv)
 			if(lookForSpecificBodyTransform(listener, frame_id, skeleton_to_track_frame, transform))
 			{
 				//TODO Ho la distanza, in base ad essa restituisco la percentuale di velocità del robot.
+				double distance = std::sqrt(std::pow(transform.getOrigin().getX(), 2) + std::pow(transform.getOrigin().getY(), 2));
 
-				if(transform.getOrigin().getY() > 0.05)
+				if(transform.getOrigin().getY() > 0.1)
 				{
 					//Giro a sinistra
 					speed_to_rotate.pop_front();
-					speed_to_rotate.push_back(fabs(3 * transform.getOrigin().getY()));
+					speed_to_rotate.push_back(2 * acos(transform.getOrigin().getX() / distance));
 
 					double speed = 0;
 
@@ -114,13 +115,12 @@ int main(int argc, char** argv)
 					}
 
 					pan_controller.turnLeft(speed);
-					ROS_INFO("Turning left at speed %f.", speed);
 				}
-				else if(transform.getOrigin().getY() < -0.05)
+				else if(transform.getOrigin().getY() < -0.1)
 				{
 					//Giro a destra
 					speed_to_rotate.pop_front();
-					speed_to_rotate.push_back(fabs(3 * transform.getOrigin().getY()));
+					speed_to_rotate.push_back(2 * acos(transform.getOrigin().getX() / distance));
 
 					double speed = 0;
 
@@ -130,7 +130,6 @@ int main(int argc, char** argv)
 					}
 
 					pan_controller.turnRight(speed);
-					ROS_INFO("Turning right at speed %f.", speed);
 				}
 				else
 				{
@@ -139,7 +138,7 @@ int main(int argc, char** argv)
 					pan_controller.standStill();
 				}
 
-				double distance = std::sqrt(std::pow(transform.getOrigin().getX(), 2) + std::pow(transform.getOrigin().getY(), 2) + std::pow(transform.getOrigin().getZ(), 2));
+
 
 				if(distance >= 0 && distance <= 1.5)
 				{
