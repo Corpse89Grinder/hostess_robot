@@ -7,7 +7,7 @@
 
 //Maximum distance from skeleton head and face recognition points in space
 #define DISTANCE_THRESHOLD 0.1
-#define MINIMUM_ASSOCIATIONS_FOR_TRACKING 5
+#define MINIMUM_ASSOCIATIONS_FOR_TRACKING 1
 #define MAX_MEAN 5
 
 void lookForEveryHeadTransform(tf::TransformListener&, std::vector<tf::StampedTransform>&, std::string);
@@ -49,7 +49,7 @@ int main(int argc, char** argv)
 
     std::string topic_to_subscribe("/kobra/tracker_cmd_vel");
     nh.getParam("topic_to_subscribe", topic_to_subscribe);
-    std::string topic_to_advertise("/kobra/locomotion_cmd_vel2");
+    std::string topic_to_advertise("/kobra/cmd_vel");
 	nh.getParam("topic_to_advertise", topic_to_advertise);
 
     ros::Subscriber twistSubscriber = nh.subscribe(topic_to_subscribe, 1, twistCallback);
@@ -162,6 +162,8 @@ int main(int argc, char** argv)
 					ratio = 1;
 				}
 			}
+
+			ros::spinOnce();
 
 			ros::Rate(30).sleep();
 		}
@@ -287,6 +289,6 @@ void twistCallback(geometry_msgs::Twist oldTwist)
 	newTwist.angular.z = oldTwist.angular.z * ratio;
 
 	pub.publish(newTwist);
-
+	ROS_WARN("Sparo twist");
 	return;
 }
