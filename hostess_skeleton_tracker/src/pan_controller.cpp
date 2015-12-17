@@ -124,3 +124,12 @@ void PanController::turnRight(double speed)
 
 	dxio->setMultiPosVel(v);
 }
+
+double PanController::getRotation()
+{
+	double presentPosition;
+
+	dxio->getPresentPosition(0, presentPosition);
+
+	return presentPosition;
+}

@@ -1,5 +1,6 @@
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
+#include <tf/transform_broadcaster.h>
 #include <sstream>
 #include <limits>
 #include <geometry_msgs/Twist.h>
@@ -56,9 +57,14 @@ int main(int argc, char** argv)
     pub = nh.advertise<geometry_msgs::Twist>(topic_to_advertise, 1);
 
     tf::TransformListener listener;
+    tf::TransformBroadcaster broadcaster;
 
     int skeleton_to_track = 0;
     std::deque<double> speed_to_rotate(MAX_MEAN, 0);
+
+    tf::Transform panTransform;
+    panTransform.setOrigin(tf::Vector3(0, 0, 0.05));
+    tf::Quaternion panOrientation;
 
     while(nh.ok())
     {
@@ -80,6 +86,10 @@ int main(int argc, char** argv)
 			}
 
 			pan_controller.standStill();
+
+			panOrientation.setRPY(0, 0, pan_controller.getRotation());
+			panTransform.setRotation(panOrientation);
+			broadcaster.sendTransform(tf::StampedTransform(panTransform, ros::Time::now(), "virgil_top_link", "pan_link"));
 
 			ros::Rate(30).sleep();
 		}
@@ -164,6 +174,10 @@ int main(int argc, char** argv)
 			}
 
 			ros::spinOnce();
+
+			panOrientation.setRPY(0, 0, pan_controller.getRotation());
+			panTransform.setRotation(panOrientation);
+			broadcaster.sendTransform(tf::StampedTransform(panTransform, ros::Time::now(), "virgil_top_link", "pan_link"));
 
 			ros::Rate(30).sleep();
 		}

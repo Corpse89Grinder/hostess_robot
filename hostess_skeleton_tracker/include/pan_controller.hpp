@@ -29,6 +29,7 @@ class PanController
 		void standStill();
 		void turnRight(double);
 		void turnLeft(double);
+		double getRotation();
 };
 
 #endif /* PAN_CONTROLLER_HPP_ */
