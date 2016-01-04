@@ -63,13 +63,6 @@ int main(int argc, char** argv)
     std::deque<double> speed_to_rotate(MAX_MEAN, 0);
 
     tf::Transform panTransform;
-    panTransform.setOrigin(tf::Vector3(0, 0, 0.05));
-
-    tf::Transform change_frame;
-	change_frame.setOrigin(tf::Vector3(0, 0, 0));
-	change_frame.setRotation(tf::Quaternion(0, 0, 0, 1));
-
-	panTransform = change_frame * panTransform;
     tf::Quaternion panOrientation;
 
     while(nh.ok())
@@ -91,10 +84,17 @@ int main(int argc, char** argv)
 				break;
 			}
 
+			ratio = 0;
+
+			ros::spinOnce();
+
 			pan_controller.standStill();
+
+			panTransform.setOrigin(tf::Vector3(0, 0, 0.05));
 
 			panOrientation.setRPY(0, 0, pan_controller.getRotation());
 			panTransform.setRotation(panOrientation);
+
 			broadcaster.sendTransform(tf::StampedTransform(panTransform, ros::Time::now(), "virgil_top_link", "pan_link"));
 
 			ros::Rate(30).sleep();
@@ -154,8 +154,6 @@ int main(int argc, char** argv)
 					pan_controller.standStill();
 				}
 
-
-
 				if(distance >= 0 && distance <= 1.5)
 				{
 					ratio = 1;
@@ -181,8 +179,11 @@ int main(int argc, char** argv)
 
 			ros::spinOnce();
 
+			panTransform.setOrigin(tf::Vector3(0, 0, 0.05));
+
 			panOrientation.setRPY(0, 0, pan_controller.getRotation());
 			panTransform.setRotation(panOrientation);
+
 			broadcaster.sendTransform(tf::StampedTransform(panTransform, ros::Time::now(), "virgil_top_link", "pan_link"));
 
 			ros::Rate(30).sleep();
@@ -309,6 +310,6 @@ void twistCallback(geometry_msgs::Twist oldTwist)
 	newTwist.angular.z = oldTwist.angular.z * ratio;
 
 	pub.publish(newTwist);
-	ROS_WARN("Sparo twist");
+
 	return;
 }

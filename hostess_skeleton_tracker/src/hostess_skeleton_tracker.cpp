@@ -23,7 +23,9 @@ void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator&, XnUserID, void*);
 void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator&, XnUserID, void*);
 void XN_CALLBACK_TYPE User_OutOfScene(xn::UserGenerator&, XnUserID, void*);
 void XN_CALLBACK_TYPE User_BackIntoScene(xn::UserGenerator&, XnUserID, void*);
+
 XnUInt32 calibrationData;
+
 void publishTransform(XnUserID const&, XnSkeletonJoint const&, std::string const&, std::string const&);
 void publishHeadTransforms(const std::string&);
 void publishTorsoTransform(const std::string&, int&);
