@@ -24,6 +24,8 @@ double ratio;
 
 ros::Publisher pub;
 
+bool useKalman = false;
+
 int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "dynamixel_mediator");
@@ -272,7 +274,14 @@ bool lookForSpecificBodyTransform(tf::TransformListener& listener, std::string f
 {
 	try
 	{
-		listener.lookupTransform(frame_id, body_to_track_frame, ros::Time(0), transform);
+		if(useKalman)
+		{
+			listener.lookupTransform(frame_id, "torso_k", ros::Time(0), transform);
+		}
+		else
+		{
+			listener.lookupTransform(frame_id, body_to_track_frame, ros::Time(0), transform);
+		}
 
 		if(transform.stamp_ != last_stamp[body_to_track_frame])
 		{

@@ -2,6 +2,7 @@
 #include <ros/package.h>
 #include <std_msgs/Int64.h>
 #include <tf/transform_broadcaster.h>
+#include <tf/transform_listener.h>
 #include <kdl/frames.hpp>
 #include <string>
 #include <XnOpenNI.h>
@@ -32,6 +33,7 @@ void publishTorsoTransform(const std::string&, int&);
 bool checkCenterOfMass(XnUserID const&);
 void stopTrackingAll(int);
 void startTrackingAll();
+void kalmanizeTorso(tf::TransformListener&, int);
 
 int main(int argc, char **argv)
 {
@@ -104,6 +106,8 @@ int main(int argc, char **argv)
     int skeleton_to_track = 0;
     nh.setParam("skeleton_to_track", skeleton_to_track);
 
+    tf::TransformListener listener;
+
 	while(nh.ok())
 	{
 		while(nh.getParam("skeleton_to_track", skeleton_to_track) && nh.ok())
@@ -125,6 +129,8 @@ int main(int argc, char **argv)
 		{
 			g_Context.WaitAndUpdateAll();
 			publishTorsoTransform(frame_id, skeleton_to_track);
+
+			kalmanizeTorso(listener, skeleton_to_track);
 
 			ros::Rate(30).sleep();
 
@@ -268,6 +274,25 @@ void publishTorsoTransform(const std::string& frame_id, int& skeleton_to_track)
 	else
 	{
 		skeleton_to_track = 0;
+	}
+}
+
+void kalmanizeTorso(tf::TransformListener& listener, int skeleton_to_track)
+{
+	tf::StampedTransform transform;
+
+	std::ostringstream oss;
+	oss << "torso_" << skeleton_to_track;
+
+	try
+	{
+		listener.lookupTransform("map", oss.str(), ros::Time(0), transform);
+
+		std::cout << "I heard TF" << std::endl;
+	}
+	catch(tf::TransformException &ex)
+	{
+		std::cout << "I heard TF" << std::endl;
 	}
 }
 
