@@ -15,6 +15,9 @@ find_package(catkin REQUIRED COMPONENTS
 	cyton_wrapper
 	pluginlib
 )
+
+find_package(OpenCV REQUIRED)
+
 # Find OpenNI
 find_package(PkgConfig)
 pkg_check_modules(OpenNI REQUIRED libopenni)
@@ -52,6 +55,7 @@ target_link_libraries(hostess_skeleton_tracker
 	${catkin_LIBRARIES}
 	${OpenNI_LIBRARIES}
 	${orocos_kdl_LIBRARIES}
+	${OpenCV_LIBS}
 )
 
 add_executable(follow_me src/follow_me.cpp)
