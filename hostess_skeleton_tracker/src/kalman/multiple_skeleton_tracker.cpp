@@ -26,6 +26,7 @@ XnUInt32 calibrationData;
 
 void publishUserTransforms(XnUserID const&, std::string const&);
 void publishTransforms(const std::string&);
+bool checkCenterOfMass(XnUserID const&);
 
 int main(int argc, char **argv)
 {
@@ -160,6 +161,10 @@ void publishUserTransforms(XnUserID const& user, std::string const& frame_id)
 		g_UserGenerator.GetSkeletonCap().GetSkeletonJointPosition(user, XN_SKEL_HEAD, joint_position[1]);
 		g_UserGenerator.GetSkeletonCap().GetSkeletonJointOrientation(user, XN_SKEL_HEAD, joint_orientation[1]);
     }
+    else
+    {
+    	return;
+    }
 
     ros::Time now = ros::Time::now();
 
@@ -241,6 +246,24 @@ void publishTransforms(const std::string& frame_id)
     {
         XnUserID user = users[i];
 
-        publishUserTransforms(user, frame_id);
+        if(checkCenterOfMass(user))
+        {
+        	publishUserTransforms(user, frame_id);
+        }
     }
+}
+
+bool checkCenterOfMass(XnUserID const& user)
+{
+	XnPoint3D center_of_mass;
+	XnStatus status = g_UserGenerator.GetCoM(user, center_of_mass);
+
+	if(status != XN_STATUS_OK || (center_of_mass.X == 0 && center_of_mass.Y == 0 && center_of_mass.Z == 0))
+    {
+		return false;
+    }
+	else
+	{
+		return true;
+	}
 }

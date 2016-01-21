@@ -37,7 +37,7 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "openni_tracker");
     ros::NodeHandle nh;
 
-    std::string configFilename = ros::package::getPath("hostess_skeleton_tracker") + "/openni_tracker.xml";
+    std::string configFilename = ros::package::getPath("hostess_skeleton_tracker") + "/init/openni_tracker.xml";
     XnStatus nRetVal = g_Context.InitFromXmlFile(configFilename.c_str());
     CHECK_RC(nRetVal, "InitFromXml");
 
