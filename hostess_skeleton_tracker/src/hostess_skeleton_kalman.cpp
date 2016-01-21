@@ -12,7 +12,7 @@
 #include <opencv2/video/tracking.hpp>
 
 #define MAX_USERS 6
-#define DISTANCE_THRESHOLD 0.2
+#define DISTANCE_THRESHOLD 1
 
 std::string genericUserCalibrationFileName;
 
@@ -213,14 +213,17 @@ int main(int argc, char **argv)
 					}
 				}
 
+				ROS_INFO("%f", min);
+
 				if(closer != 0 && min < DISTANCE_THRESHOLD)
 				{
 					skeleton_to_track = closer;
 					ros::param::set("skeleton_to_track", skeleton_to_track);
+					lost = false;
 				}
 				else
 				{
-					if((now - lastDetected).sec >= 2)
+					if((now - lastDetected).sec >= 3)
 					{
 						lost = false;
 						detected = false;
