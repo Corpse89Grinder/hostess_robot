@@ -55,11 +55,34 @@ target_link_libraries(hostess_skeleton_tracker
 	${catkin_LIBRARIES}
 	${OpenNI_LIBRARIES}
 	${orocos_kdl_LIBRARIES}
+)
+
+add_executable(multiple_skeleton_tracker src/kalman/multiple_skeleton_tracker.cpp)
+
+add_dependencies(multiple_skeleton_tracker geometry_msgs_gencpp)
+
+target_link_libraries(multiple_skeleton_tracker
+	${catkin_LIBRARIES}
+	${OpenNI_LIBRARIES}
+	${orocos_kdl_LIBRARIES}
+)
+
+add_executable(hostess_skeleton_kalman src/hostess_skeleton_kalman.cpp)
+
+add_dependencies(hostess_skeleton_kalman geometry_msgs_gencpp)
+
+target_link_libraries(hostess_skeleton_kalman
+	${catkin_LIBRARIES}
+	${OpenNI_LIBRARIES}
+	${orocos_kdl_LIBRARIES}
 	${OpenCV_LIBS}
 )
 
 add_executable(follow_me src/follow_me.cpp)
 target_link_libraries(follow_me ${catkin_LIBRARIES})
+
+add_executable(kalman_filter src/kalman/kalman_filter.cpp)
+target_link_libraries(kalman_filter ${catkin_LIBRARIES})
 				     
 add_executable(identity_setter src/identity_setter.cpp)
 target_link_libraries(identity_setter ${catkin_LIBRARIES})
