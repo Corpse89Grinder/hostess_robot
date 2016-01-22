@@ -9,7 +9,7 @@
 //Maximum distance from skeleton head and face recognition points in space
 #define DISTANCE_THRESHOLD 0.1
 #define MINIMUM_ASSOCIATIONS_FOR_TRACKING 1
-#define MAX_MEAN 5
+#define MAX_MEAN 3
 
 void lookForEveryHeadTransform(tf::TransformListener&, std::vector<tf::StampedTransform>&, std::string);
 bool findClosestHeadToFace(std::vector<tf::StampedTransform>&, std::string&);
@@ -67,11 +67,15 @@ int main(int argc, char** argv)
     tf::Transform panTransform;
     tf::Quaternion panOrientation;
 
+    ros::param::set("skeleton_to_track", skeleton_to_track);
+
     while(nh.ok())
     {
     	ROS_INFO("Looking for %s's face.", user_to_track.c_str());
 
     	std::string skeleton_to_track_frame;
+
+    	ros::Time reset = ros::Time::now();
 
 		while(nh.ok())							//Search continuously for a skeleton head very close to the designated user face.
 		{
@@ -90,7 +94,11 @@ int main(int argc, char** argv)
 
 			ros::spinOnce();
 
-			pan_controller.standStill();
+			if((ros::Time::now() - reset).sec >= 30)
+			{
+				ROS_INFO("Going home");
+				pan_controller.goHome();
+			}
 
 			panTransform.setOrigin(tf::Vector3(0, 0, 0.05));
 
@@ -109,6 +117,8 @@ int main(int argc, char** argv)
 			if(skeleton_to_track == 0)
 			{
 				ROS_INFO("User %s and skeleton %s association lost. Stop tracking.", user_to_track.c_str(), skeleton_to_track_frame.c_str());
+				pan_controller.standStill();
+
 				break;
 			}
 
@@ -119,11 +129,11 @@ int main(int argc, char** argv)
 				//TODO Ho la distanza, in base ad essa restituisco la percentuale di velocità del robot.
 				double distance = std::sqrt(std::pow(transform.getOrigin().getX(), 2) + std::pow(transform.getOrigin().getY(), 2));
 
-				if(transform.getOrigin().getY() > 0.1)
+				if(transform.getOrigin().getY() > 0.05)
 				{
 					//Giro a sinistra
 					speed_to_rotate.pop_front();
-					speed_to_rotate.push_back(2 * acos(transform.getOrigin().getX() / distance));
+					speed_to_rotate.push_back(2.5 * acos(transform.getOrigin().getX() / distance));
 
 					double speed = 0;
 
@@ -134,11 +144,11 @@ int main(int argc, char** argv)
 
 					pan_controller.turnLeft(speed);
 				}
-				else if(transform.getOrigin().getY() < -0.1)
+				else if(transform.getOrigin().getY() < -0.05)
 				{
 					//Giro a destra
 					speed_to_rotate.pop_front();
-					speed_to_rotate.push_back(2 * acos(transform.getOrigin().getX() / distance));
+					speed_to_rotate.push_back(2.5 * acos(transform.getOrigin().getX() / distance));
 
 					double speed = 0;
 

@@ -1,6 +1,6 @@
 #include "pan_controller.hpp"
 
-#define MAX_SPEED 1.0
+#define MAX_SPEED 0.8
 
 PanController::PanController(ros::NodeHandle& nh): private_nh_("~")
 {
@@ -44,6 +44,13 @@ PanController::PanController(ros::NodeHandle& nh): private_nh_("~")
 
 PanController::~PanController()
 {
+	goHome();
+
+	while(!homed)
+	{
+
+	}
+
 	dxio->stop();
 }
 

@@ -54,14 +54,14 @@ Visualization Manager:
       Value: true
     - Class: rviz/TF
       Enabled: true
-      Frame Timeout: 5
+      Frame Timeout: 15
       Frames:
         00000004:
           Value: true
         All Enabled: true
         Unknown_1:
           Value: true
-        Unknown_2:
+        base_link:
           Value: true
         camera_depth_frame:
           Value: true
@@ -72,6 +72,38 @@ Visualization Manager:
         camera_rgb_frame:
           Value: true
         camera_rgb_optical_frame:
+          Value: true
+        global_head_1:
+          Value: true
+        global_head_2:
+          Value: true
+        global_head_3:
+          Value: true
+        global_head_4:
+          Value: true
+        global_head_5:
+          Value: true
+        global_head_6:
+          Value: true
+        global_head_7:
+          Value: true
+        global_head_8:
+          Value: true
+        global_torso_1:
+          Value: true
+        global_torso_2:
+          Value: true
+        global_torso_3:
+          Value: true
+        global_torso_4:
+          Value: true
+        global_torso_5:
+          Value: true
+        global_torso_6:
+          Value: true
+        global_torso_7:
+          Value: true
+        global_torso_8:
           Value: true
         head_1:
           Value: true
@@ -85,6 +117,20 @@ Visualization Manager:
           Value: true
         head_6:
           Value: true
+        head_7:
+          Value: true
+        head_8:
+          Value: true
+        laser:
+          Value: true
+        map:
+          Value: true
+        map_zone:
+          Value: true
+        odom:
+          Value: true
+        pan_link:
+          Value: true
         torso_1:
           Value: true
         torso_2:
@@ -93,7 +139,17 @@ Visualization Manager:
           Value: true
         torso_4:
           Value: true
+        torso_5:
+          Value: true
         torso_6:
+          Value: true
+        torso_7:
+          Value: true
+        torso_8:
+          Value: true
+        torso_k:
+          Value: true
+        virgil_top_link:
           Value: true
       Marker Scale: 1
       Name: TF
@@ -101,40 +157,92 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        camera_link:
-          camera_depth_frame:
-            camera_depth_optical_frame:
-              {}
-            head_1:
-              {}
-            head_2:
-              {}
-            head_3:
-              {}
-            head_4:
-              {}
-            head_5:
-              {}
-            head_6:
-              {}
-            torso_1:
-              {}
-            torso_2:
-              {}
-            torso_3:
-              {}
-            torso_4:
-              {}
-            torso_6:
-              {}
-          camera_rgb_frame:
-            camera_rgb_optical_frame:
-              00000004:
+        map:
+          global_head_1:
+            {}
+          global_head_2:
+            {}
+          global_head_3:
+            {}
+          global_head_4:
+            {}
+          global_head_5:
+            {}
+          global_head_6:
+            {}
+          global_head_7:
+            {}
+          global_head_8:
+            {}
+          global_torso_1:
+            {}
+          global_torso_2:
+            {}
+          global_torso_3:
+            {}
+          global_torso_4:
+            {}
+          global_torso_5:
+            {}
+          global_torso_6:
+            {}
+          global_torso_7:
+            {}
+          global_torso_8:
+            {}
+          map_zone:
+            {}
+          odom:
+            base_link:
+              laser:
                 {}
-              Unknown_1:
+              virgil_top_link:
                 {}
-              Unknown_2:
+          torso_k:
+            {}
+        pan_link:
+          camera_link:
+            camera_depth_frame:
+              camera_depth_optical_frame:
                 {}
+              head_1:
+                {}
+              head_2:
+                {}
+              head_3:
+                {}
+              head_4:
+                {}
+              head_5:
+                {}
+              head_6:
+                {}
+              head_7:
+                {}
+              head_8:
+                {}
+              torso_1:
+                {}
+              torso_2:
+                {}
+              torso_3:
+                {}
+              torso_4:
+                {}
+              torso_5:
+                {}
+              torso_6:
+                {}
+              torso_7:
+                {}
+              torso_8:
+                {}
+            camera_rgb_frame:
+              camera_rgb_optical_frame:
+                00000004:
+                  {}
+                Unknown_1:
+                  {}
       Update Interval: 0
       Value: true
     - Class: rviz/Image
@@ -172,19 +280,19 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 5.921
+      Distance: 11.099
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0
-        Y: 0
-        Z: 0
+        X: -0.26943
+        Y: -0.694805
+        Z: -0.506956
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.315399
+      Pitch: 0.560399
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
       Yaw: 3.11041
@@ -208,4 +316,4 @@ Window Geometry:
     collapsed: true
   Width: 927
   X: 65
-  Y: 14
+  Y: 52

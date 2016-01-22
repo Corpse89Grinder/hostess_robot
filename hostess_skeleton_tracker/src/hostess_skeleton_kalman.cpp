@@ -28,6 +28,8 @@ std::map<int, std::pair<ros::Time, ros::Duration> > users_timeouts;
 
 void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator&, XnUserID, void*);
 void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator&, XnUserID, void*);
+void XN_CALLBACK_TYPE User_OutOfScene(xn::UserGenerator&, XnUserID, void*);
+void XN_CALLBACK_TYPE User_BackIntoScene(xn::UserGenerator&, XnUserID, void*);
 
 XnUInt32 calibrationData;
 
@@ -261,7 +263,22 @@ void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator& generator, XnUserID nId, v
 
 void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
 {
+	g_UserGenerator.GetSkeletonCap().StopTracking(nId);
 	ROS_INFO("Lost user %d.", nId);
+}
+
+void XN_CALLBACK_TYPE User_BackIntoScene(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
+{
+	ROS_INFO("User %d back into scene. Restart tracking.", nId);
+
+	g_UserGenerator.GetSkeletonCap().StartTracking(nId);
+}
+
+void XN_CALLBACK_TYPE User_OutOfScene(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
+{
+	ROS_INFO("User %d out of scene. Stop tracking.", nId);
+
+	g_UserGenerator.GetSkeletonCap().StopTracking(nId);
 }
 
 void predictAndPublish()
