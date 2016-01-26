@@ -45,6 +45,9 @@ bool checkCenterOfMass(XnUserID const&);
 
 bool updateParent();
 
+void stopTrackingAll(int);
+void startTrackingAll();
+
 tf::StampedTransform parentTransform;
 
 //--------------Kalman Filter-----------------
@@ -60,7 +63,8 @@ cv::Mat meas(measSize, 1, CV_32F);
 double ticks = 0;
 int notFoundCount = 0;
 bool detected = false;
-bool newMeas = false;
+bool isTracking = false;
+bool lost = false;
 
 ros::Time lastStamp;
 
@@ -138,14 +142,13 @@ int main(int argc, char **argv)
 	kf.measurementMatrix.at<float>(7) = 1.0f;
 	kf.measurementMatrix.at<float>(14) = 1.0f;
 
-	cv::setIdentity(kf.processNoiseCov, cv::Scalar(1e-2));
-	cv::setIdentity(kf.measurementNoiseCov, cv::Scalar(1e-1));
+	cv::setIdentity(kf.processNoiseCov, cv::Scalar(1e-1));
+	cv::setIdentity(kf.measurementNoiseCov, cv::Scalar(1e-2));
 
 	static tf::TransformListener listener;
 	static tf::TransformBroadcaster br;
 
 	ros::Time lastDetected;
-	bool lost = false;
 
 	while(nh.getParam("skeleton_to_track", skeleton_to_track) && nh.ok())
 	{
@@ -162,6 +165,12 @@ int main(int argc, char **argv)
 		else
 		{
 			//Tracking phase. I have my user to track, i need to apply the Kalman filter to its torso.
+
+			if(!isTracking)
+			{
+				stopTrackingAll(skeleton_to_track);
+				isTracking = true;
+			}
 
 			if(detected)
 			{
@@ -185,6 +194,7 @@ int main(int argc, char **argv)
 				else
 				{
 					lost = true;
+					startTrackingAll();
 				}
 			}
 			else
@@ -205,7 +215,7 @@ int main(int argc, char **argv)
 
 					if(calcUserTransforms(user, torso_local, torso_global, head_local, head_global))
 					{
-						double current = std::sqrt(std::pow(torso_global.getOrigin().getX() - state.at<float>(0), 2) + std::pow(torso_global.getOrigin().getY() - state.at<float>(1), 2) + std::pow(torso_global.getOrigin().getZ() - state.at<float>(2), 2));
+						double current = std::sqrt(std::pow(torso_global.getOrigin().getX() - state.at<float>(0), 2) + std::pow(torso_global.getOrigin().getY() - state.at<float>(1), 2));
 
 						if(current < min)
 						{
@@ -215,7 +225,10 @@ int main(int argc, char **argv)
 					}
 				}
 
-				ROS_INFO("%f", min);
+				if(closer != 0)
+				{
+					ROS_INFO("%f", min);
+				}
 
 				if(closer != 0 && min < DISTANCE_THRESHOLD)
 				{
@@ -229,6 +242,7 @@ int main(int argc, char **argv)
 					{
 						lost = false;
 						detected = false;
+						isTracking = false;
 						skeleton_to_track = 0;
 						ros::param::set("skeleton_to_track", skeleton_to_track);
 					}
@@ -257,14 +271,24 @@ void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator& generator, XnUserID nId, v
 		g_UserGenerator.GetSkeletonCap().LoadCalibrationData(nId, calibrationData);
 	}
 
-	g_UserGenerator.GetSkeletonCap().StartTracking(nId);
-	ROS_INFO("Start tracking user: %d.", nId);
+	int skeleton_to_track;
+	ros::param::get("skeleton_to_track", skeleton_to_track);
+
+	if(skeleton_to_track == 0 || lost)
+	{
+		g_UserGenerator.GetSkeletonCap().StartTracking(nId);
+		ROS_INFO("Start tracking user: %d.", nId);
+	}
 }
 
 void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
 {
-	g_UserGenerator.GetSkeletonCap().StopTracking(nId);
-	ROS_INFO("Lost user %d.", nId);
+	ROS_INFO("Lost user %d. Stop tracking.", nId);
+
+	if(g_UserGenerator.GetSkeletonCap().IsTracking(nId))
+	{
+		g_UserGenerator.GetSkeletonCap().StopTracking(nId);
+	}
 }
 
 void XN_CALLBACK_TYPE User_BackIntoScene(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
@@ -280,6 +304,8 @@ void XN_CALLBACK_TYPE User_OutOfScene(xn::UserGenerator& generator, XnUserID nId
 
 	g_UserGenerator.GetSkeletonCap().StopTracking(nId);
 }
+
+//------------------------- Kalman Filter methods --------------------------
 
 void predictAndPublish()
 {
@@ -321,10 +347,26 @@ void kalmanUpdate(tf::Transform transform)
 		state.at<float>(4) = 0;
 		state.at<float>(5) = 0;
 
-		kf.statePost = state;
+		kf.statePre = state;
+		kf.predict();
 	}
 	else
 	{
+		double oldX = meas.at<float>(0);
+		double oldY = meas.at<float>(1);
+
+		kf.processNoiseCov.at<float>(0) = fabs(oldX - transform.getOrigin().getX());
+		kf.processNoiseCov.at<float>(7) = fabs(oldY - transform.getOrigin().getY());
+
+		if(kf.processNoiseCov.at<float>(0) > kf.processNoiseCov.at<float>(7))
+		{
+			kf.processNoiseCov.at<float>(7) = kf.processNoiseCov.at<float>(7) * 0.1;
+		}
+		else
+		{
+			kf.processNoiseCov.at<float>(0) = kf.processNoiseCov.at<float>(0) * 0.1;
+		}
+
 		meas.at<float>(0) = transform.getOrigin().getX();
 		meas.at<float>(1) = transform.getOrigin().getY();
 		meas.at<float>(2) = transform.getOrigin().getZ();
@@ -410,6 +452,11 @@ bool calcUserTransforms(XnUserID const& user, tf::Transform& torso_local, tf::Tr
 		g_UserGenerator.GetSkeletonCap().GetSkeletonJointOrientation(user, XN_SKEL_TORSO, torso_orientation);
 		g_UserGenerator.GetSkeletonCap().GetSkeletonJointPosition(user, XN_SKEL_HEAD, head_position);
 		g_UserGenerator.GetSkeletonCap().GetSkeletonJointOrientation(user, XN_SKEL_HEAD, head_orientation);
+
+		if(torso_position.fConfidence < 1 || head_position.fConfidence < 1)
+		{
+			return false;
+		}
 	}
 	else
 	{
@@ -464,5 +511,38 @@ bool updateParent()
 	catch(tf::TransformException& ex)
 	{
 		return false;
+	}
+}
+
+void stopTrackingAll(int current_user)
+{
+	XnUInt16 users_count = MAX_USERS;
+	XnUserID users[MAX_USERS];
+
+	g_UserGenerator.GetUsers(users, users_count);
+
+	for(int i = 0; i < users_count; ++i)
+	{
+		XnUserID user = users[i];
+
+		if(user != current_user && g_UserGenerator.GetSkeletonCap().IsTracking(user))
+		{
+			g_UserGenerator.GetSkeletonCap().StopTracking(user);
+		}
+	}
+}
+
+void startTrackingAll()
+{
+	XnUInt16 users_count = MAX_USERS;
+	XnUserID users[MAX_USERS];
+
+	g_UserGenerator.GetUsers(users, users_count);
+
+	for(int i = 0; i < users_count; ++i)
+	{
+		XnUserID user = users[i];
+
+		g_UserGenerator.GetSkeletonCap().StartTracking(user);
 	}
 }
