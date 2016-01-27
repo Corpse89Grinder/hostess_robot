@@ -40,6 +40,15 @@ PanController::PanController(ros::NodeHandle& nh): private_nh_("~")
 	extremeLeft = (dxio->getMaxAngle(0) - 2048) * 0.0015339804;	//Estrema sinistra del motore
 
 	goHome();
+
+	double presentPosition;
+
+	while(!homed)
+	{
+
+	}
+
+	return;
 }
 
 PanController::~PanController()
@@ -52,6 +61,8 @@ PanController::~PanController()
 	}
 
 	dxio->stop();
+
+	return;
 }
 
 void PanController::goHome()
@@ -72,21 +83,14 @@ void PanController::goHome()
 	{
 		dxio->getPresentPosition(0, presentPosition);
 	}
-	while(presentPosition != 0);
+	while(presentPosition >= 0.005 || presentPosition <= -0.005);
 
 	homed = true;
 }
 
 bool PanController::isHome()
 {
-	if(homed)
-	{
-		return true;
-	}
-	else
-	{
-		return false;
-	}
+	return homed;
 }
 
 void PanController::standStill()
@@ -104,10 +108,14 @@ void PanController::standStill()
 	v.push_back(pv);
 
 	dxio->setMultiPosVel(v);
+
+	return;
 }
 
 void PanController::turnLeft(double speed)
 {
+	homed = false;
+
 	std::vector<std::vector<double> > v;
 	std::vector<double> pv;
 
@@ -117,10 +125,14 @@ void PanController::turnLeft(double speed)
 	v.push_back(pv);
 
 	dxio->setMultiPosVel(v);
+
+	return;
 }
 
 void PanController::turnRight(double speed)
 {
+	homed = false;
+
 	std::vector<std::vector<double> > v;
 	std::vector<double> pv;
 
@@ -130,6 +142,8 @@ void PanController::turnRight(double speed)
 	v.push_back(pv);
 
 	dxio->setMultiPosVel(v);
+
+	return;
 }
 
 double PanController::getRotation()

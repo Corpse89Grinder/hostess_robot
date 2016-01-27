@@ -38,11 +38,6 @@ int main(int argc, char** argv)
 
 	PanController pan_controller(nh);
 
-	while(!pan_controller.isHome())
-	{
-		ros::Duration(0.5).sleep();
-	}
-
 	ROS_INFO("Waiting for user identity.");
 
     while(!ros::param::get("user_to_track", user_to_track) && nh.ok())
@@ -63,9 +58,6 @@ int main(int argc, char** argv)
 
     int skeleton_to_track = 0;
     std::deque<double> speed_to_rotate(MAX_MEAN, 0);
-
-    tf::Transform panTransform;
-    tf::Quaternion panOrientation;
 
     ros::param::set("skeleton_to_track", skeleton_to_track);
 
@@ -94,15 +86,21 @@ int main(int argc, char** argv)
 
 			ros::spinOnce();
 
-			if((ros::Time::now() - reset).sec >= 30)
+			if((ros::Time::now() - reset).sec >= 30 && !pan_controller.isHome())
 			{
 				ROS_INFO("Going home");
 				pan_controller.goHome();
 			}
 
-			panTransform.setOrigin(tf::Vector3(0, 0, 0.05));
+			tf::Quaternion panOrientation;
+			double yaw = pan_controller.getRotation();
 
-			panOrientation.setRPY(0, 0, pan_controller.getRotation());
+			ROS_INFO("Pan YAW: %f", yaw);
+
+			panOrientation.setRPY(0, 0, yaw);
+
+			tf::Transform panTransform;
+			panTransform.setOrigin(tf::Vector3(0, 0, 0.05));
 			panTransform.setRotation(panOrientation);
 
 			broadcaster.sendTransform(tf::StampedTransform(panTransform, ros::Time::now(), "virgil_top_link", "pan_link"));
@@ -191,9 +189,11 @@ int main(int argc, char** argv)
 
 			ros::spinOnce();
 
-			panTransform.setOrigin(tf::Vector3(0, 0, 0.05));
-
+			tf::Quaternion panOrientation;
 			panOrientation.setRPY(0, 0, pan_controller.getRotation());
+
+			tf::Transform panTransform;
+			panTransform.setOrigin(tf::Vector3(0, 0, 0.05));
 			panTransform.setRotation(panOrientation);
 
 			broadcaster.sendTransform(tf::StampedTransform(panTransform, ros::Time::now(), "virgil_top_link", "pan_link"));
@@ -204,7 +204,7 @@ int main(int argc, char** argv)
 
     ros::shutdown();
 
-    return EXIT_SUCCESS;
+    exit(EXIT_SUCCESS);
 }
 
 void lookForEveryHeadTransform(tf::TransformListener& listener, std::vector<tf::StampedTransform>& transforms, std::string user_to_track)

@@ -142,8 +142,8 @@ int main(int argc, char **argv)
 	kf.measurementMatrix.at<float>(7) = 1.0f;
 	kf.measurementMatrix.at<float>(14) = 1.0f;
 
-	cv::setIdentity(kf.processNoiseCov, cv::Scalar(1e-1));
-	cv::setIdentity(kf.measurementNoiseCov, cv::Scalar(1e-2));
+	cv::setIdentity(kf.processNoiseCov, cv::Scalar(1e-3));
+	cv::setIdentity(kf.measurementNoiseCov, cv::Scalar(1e-1));
 
 	static tf::TransformListener listener;
 	static tf::TransformBroadcaster br;
@@ -355,18 +355,18 @@ void kalmanUpdate(tf::Transform transform)
 		double oldX = meas.at<float>(0);
 		double oldY = meas.at<float>(1);
 
-		kf.processNoiseCov.at<float>(0) = fabs(oldX - transform.getOrigin().getX());
-		kf.processNoiseCov.at<float>(7) = fabs(oldY - transform.getOrigin().getY());
+/*		kf.processNoiseCov.at<float>(0) = 0.1 * fabs(oldX - transform.getOrigin().getX());
+		kf.processNoiseCov.at<float>(7) = 0.1 * fabs(oldY - transform.getOrigin().getY());
 
 		if(kf.processNoiseCov.at<float>(0) > kf.processNoiseCov.at<float>(7))
 		{
-			kf.processNoiseCov.at<float>(7) = kf.processNoiseCov.at<float>(7) * 0.1;
+			kf.processNoiseCov.at<float>(7) = kf.processNoiseCov.at<float>(7) * 0.01;
 		}
 		else
 		{
-			kf.processNoiseCov.at<float>(0) = kf.processNoiseCov.at<float>(0) * 0.1;
+			kf.processNoiseCov.at<float>(0) = kf.processNoiseCov.at<float>(0) * 0.01;
 		}
-
+*/
 		meas.at<float>(0) = transform.getOrigin().getX();
 		meas.at<float>(1) = transform.getOrigin().getY();
 		meas.at<float>(2) = transform.getOrigin().getZ();
