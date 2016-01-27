@@ -160,6 +160,11 @@ void publishUserTransforms(XnUserID const& user, std::string const& frame_id)
 		g_UserGenerator.GetSkeletonCap().GetSkeletonJointOrientation(user, XN_SKEL_TORSO, joint_orientation[0]);
 		g_UserGenerator.GetSkeletonCap().GetSkeletonJointPosition(user, XN_SKEL_HEAD, joint_position[1]);
 		g_UserGenerator.GetSkeletonCap().GetSkeletonJointOrientation(user, XN_SKEL_HEAD, joint_orientation[1]);
+
+		if(joint_position[0].fConfidence < 1 || joint_position[1].fConfidence < 1)
+		{
+			return;
+		}
     }
     else
     {
