@@ -145,6 +145,10 @@ int main(int argc, char **argv)
 	cv::setIdentity(kf.processNoiseCov, cv::Scalar(1e-3));
 	cv::setIdentity(kf.measurementNoiseCov, cv::Scalar(1e-1));
 
+	kf.transitionMatrix.at<float>(2) = 1.0f;
+	kf.transitionMatrix.at<float>(9) = 1.0f;
+	kf.transitionMatrix.at<float>(16) = 1.0f;
+
 	static tf::TransformListener listener;
 	static tf::TransformBroadcaster br;
 
@@ -170,11 +174,6 @@ int main(int argc, char **argv)
 			{
 				stopTrackingAll(skeleton_to_track);
 				isTracking = true;
-			}
-
-			if(detected)
-			{
-				predictAndPublish();
 			}
 
 			ros::Time now = ros::Time::now();
@@ -247,6 +246,11 @@ int main(int argc, char **argv)
 						ros::param::set("skeleton_to_track", skeleton_to_track);
 					}
 				}
+			}
+
+			if(detected)
+			{
+				predictAndPublish();
 			}
 		}
 
@@ -326,6 +330,8 @@ void kalmanPrediction()
 	ticks = (double)cv::getTickCount();
 
 	double dT = (ticks - precTick) / cv::getTickFrequency();
+
+	ROS_INFO("%f", dT);
 
 	kf.transitionMatrix.at<float>(2) = dT;
 	kf.transitionMatrix.at<float>(9) = dT;
