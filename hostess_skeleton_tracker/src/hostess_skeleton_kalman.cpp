@@ -1,6 +1,5 @@
 #include <ros/ros.h>
 #include <ros/package.h>
-#include <std_msgs/Int64.h>
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
 #include <kdl/frames.hpp>
@@ -33,6 +32,7 @@ void XN_CALLBACK_TYPE User_BackIntoScene(xn::UserGenerator&, XnUserID, void*);
 
 XnUInt32 calibrationData;
 
+void kalmanInitialization();
 void predictAndPublish();
 void kalmanPrediction();
 void kalmanUpdate(tf::Transform);
@@ -55,12 +55,15 @@ tf::StampedTransform parentTransform;
 const int stateSize = 6;
 const int measSize = 3;
 const int contrSize = 0;
-cv::KalmanFilter kf(stateSize, measSize, contrSize);
+
+cv::KalmanFilter kf1(stateSize, measSize, contrSize);
+cv::KalmanFilter kf2(stateSize, measSize, contrSize);
 
 cv::Mat state(stateSize, 1, CV_32F);
 cv::Mat meas(measSize, 1, CV_32F);
 
 double ticks = 0;
+double dT;
 int notFoundCount = 0;
 bool detected = false;
 bool isTracking = false;
@@ -134,29 +137,22 @@ int main(int argc, char **argv)
     nh.getParam("camera_frame_id", frame_id);
     nh.getParam("parent_frame_id", parent_frame_id);
 
-    cv::setIdentity(kf.transitionMatrix);
-    cv::setIdentity(kf.errorCovPre);
-
-	kf.measurementMatrix = cv::Mat::zeros(measSize, stateSize, CV_32F);
-	kf.measurementMatrix.at<float>(0) = 1.0f;
-	kf.measurementMatrix.at<float>(7) = 1.0f;
-	kf.measurementMatrix.at<float>(14) = 1.0f;
-
-	cv::setIdentity(kf.processNoiseCov, cv::Scalar(1e-3));
-	cv::setIdentity(kf.measurementNoiseCov, cv::Scalar(1e-1));
-
-	kf.transitionMatrix.at<float>(2) = 1.0f;
-	kf.transitionMatrix.at<float>(9) = 1.0f;
-	kf.transitionMatrix.at<float>(16) = 1.0f;
-
 	static tf::TransformListener listener;
 	static tf::TransformBroadcaster br;
+
+	kalmanInitialization();
 
 	ros::Time lastDetected;
 
 	while(nh.getParam("skeleton_to_track", skeleton_to_track) && nh.ok())
 	{
 		updateParent();
+
+		double precTick = ticks;
+
+		ticks = (double)cv::getTickCount();
+
+		dT = (ticks - precTick) / cv::getTickFrequency();
 
 		g_Context.WaitAndUpdateAll();
 
@@ -311,6 +307,39 @@ void XN_CALLBACK_TYPE User_OutOfScene(xn::UserGenerator& generator, XnUserID nId
 
 //------------------------- Kalman Filter methods --------------------------
 
+void kalmanInitialization()
+{
+	cv::setIdentity(kf1.transitionMatrix);
+	cv::setIdentity(kf1.errorCovPre);
+
+	kf1.measurementMatrix = cv::Mat::zeros(measSize, stateSize, CV_32F);
+	kf1.measurementMatrix.at<float>(0) = 1.0f;
+	kf1.measurementMatrix.at<float>(7) = 1.0f;
+	kf1.measurementMatrix.at<float>(14) = 1.0f;
+
+	cv::setIdentity(kf1.processNoiseCov, cv::Scalar(1e-3));
+	cv::setIdentity(kf1.measurementNoiseCov, cv::Scalar(1e-1));
+
+	kf1.transitionMatrix.at<float>(2) = 1.0f;
+	kf1.transitionMatrix.at<float>(9) = 1.0f;
+	kf1.transitionMatrix.at<float>(16) = 1.0f;
+
+	cv::setIdentity(kf2.transitionMatrix);
+	cv::setIdentity(kf2.errorCovPre);
+
+	kf2.measurementMatrix = cv::Mat::zeros(measSize, stateSize, CV_32F);
+	kf2.measurementMatrix.at<float>(0) = 1.0f;
+	kf2.measurementMatrix.at<float>(7) = 1.0f;
+	kf2.measurementMatrix.at<float>(14) = 1.0f;
+
+	cv::setIdentity(kf2.processNoiseCov, cv::Scalar(1e-3));
+	cv::setIdentity(kf2.measurementNoiseCov, cv::Scalar(1e-1));
+
+	kf2.transitionMatrix.at<float>(2) = 1.0f;
+	kf2.transitionMatrix.at<float>(9) = 1.0f;
+	kf2.transitionMatrix.at<float>(16) = 1.0f;
+}
+
 void predictAndPublish()
 {
 	kalmanPrediction();
@@ -325,19 +354,11 @@ void predictAndPublish()
 
 void kalmanPrediction()
 {
-	double precTick = ticks;
+	kf2.transitionMatrix.at<float>(2) = dT;
+	kf2.transitionMatrix.at<float>(9) = dT;
+	kf2.transitionMatrix.at<float>(16) = dT;
 
-	ticks = (double)cv::getTickCount();
-
-	double dT = (ticks - precTick) / cv::getTickFrequency();
-
-	ROS_INFO("%f", dT);
-
-	kf.transitionMatrix.at<float>(2) = dT;
-	kf.transitionMatrix.at<float>(9) = dT;
-	kf.transitionMatrix.at<float>(16) = dT;
-
-	state = kf.predict();
+	state = kf2.predict();
 }
 
 void kalmanUpdate(tf::Transform transform)
@@ -346,38 +367,42 @@ void kalmanUpdate(tf::Transform transform)
 	{
 		detected = true;
 
-		state.at<float>(0) = transform.getOrigin().getX();
-		state.at<float>(1) = transform.getOrigin().getY();
-		state.at<float>(2) = transform.getOrigin().getZ();
-		state.at<float>(3) = 0;
-		state.at<float>(4) = 0;
-		state.at<float>(5) = 0;
+		kf1.statePre.at<float>(0) = transform.getOrigin().getX();
+		kf1.statePre.at<float>(1) = transform.getOrigin().getY();
+		kf1.statePre.at<float>(2) = transform.getOrigin().getZ();
+		kf1.statePre.at<float>(3) = 0;
+		kf1.statePre.at<float>(4) = 0;
+		kf1.statePre.at<float>(5) = 0;
 
-		kf.statePre = state;
-		kf.predict();
+		kf2.statePre.at<float>(0) = transform.getOrigin().getX();
+		kf2.statePre.at<float>(1) = transform.getOrigin().getY();
+		kf2.statePre.at<float>(2) = transform.getOrigin().getZ();
+		kf2.statePre.at<float>(3) = 0;
+		kf2.statePre.at<float>(4) = 0;
+		kf2.statePre.at<float>(5) = 0;
+
+		kf1.predict();
+		kf2.predict();
 	}
 	else
 	{
-		double oldX = meas.at<float>(0);
-		double oldY = meas.at<float>(1);
-
-/*		kf.processNoiseCov.at<float>(0) = 0.1 * fabs(oldX - transform.getOrigin().getX());
-		kf.processNoiseCov.at<float>(7) = 0.1 * fabs(oldY - transform.getOrigin().getY());
-
-		if(kf.processNoiseCov.at<float>(0) > kf.processNoiseCov.at<float>(7))
-		{
-			kf.processNoiseCov.at<float>(7) = kf.processNoiseCov.at<float>(7) * 0.01;
-		}
-		else
-		{
-			kf.processNoiseCov.at<float>(0) = kf.processNoiseCov.at<float>(0) * 0.01;
-		}
-*/
 		meas.at<float>(0) = transform.getOrigin().getX();
 		meas.at<float>(1) = transform.getOrigin().getY();
 		meas.at<float>(2) = transform.getOrigin().getZ();
 
-		kf.correct(meas);
+		kf1.correct(meas);
+
+		kf1.transitionMatrix.at<float>(2) = dT;
+		kf1.transitionMatrix.at<float>(9) = dT;
+		kf1.transitionMatrix.at<float>(16) = dT;
+
+		state = kf1.predict();
+
+		meas.at<float>(0) = state.at<float>(0);
+		meas.at<float>(1) = state.at<float>(1);
+		meas.at<float>(2) = state.at<float>(2);
+
+		kf2.correct(meas);
 	}
 }
 

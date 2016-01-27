@@ -1,44 +1,169 @@
-#include <ros/ros.h>
-#include <geometry_msgs/Transform.h>
-#include <tf/transform_broadcaster.h>
+#include <iostream>
+#include <deque>
 
-int main(int argc, char** argv)
-{
-	ros::init(argc, argv, "try");
-	ros::NodeHandle nh;
+//#include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/video/tracking.hpp>
+//#include <opencv2/highgui/highgui_c.h>
 
-	geometry_msgs::Transform a, b;
+using namespace cv;
+using namespace std;
 
-	a.translation.x = 1;
-	a.translation.y = a.translation.z = 0;
-	a.rotation.x = a.rotation.y = 0;
-	a.rotation.z = 0.5;
-	a.rotation.w = 1;
 
-	b.translation.x = 1;
-	b.translation.y = b.translation.z = 0;
-	b.rotation.x = b.rotation.y = b.rotation.z = 0;
-	b.rotation.w = 1;
+struct mouse_info_struct { int x,y; };
+struct mouse_info_struct mouse_info = {-1,-1}, last_mouse;
 
-	tf::TransformBroadcaster br;
+deque<Point> mousev,kalmanv,secondkalmanv;
 
-	while(nh.ok())
+void on_mouse(int event, int x, int y, int flags, void* param) {
+	//if (event == CV_EVENT_LBUTTONUP)
 	{
-		tf::Transform a_transform, b_transform, c_transform;
-		a_transform.setOrigin(tf::Vector3(a.translation.x, a.translation.y, a.translation.z));
-		a_transform.setRotation(tf::Quaternion(a.rotation.x, a.rotation.y, a.rotation.z, a.rotation.w));
+		last_mouse = mouse_info;
+		mouse_info.x = x;
+		mouse_info.y = y;
 
-		br.sendTransform(tf::StampedTransform(a_transform, ros::Time::now(), "map", "a"));
-
-		b_transform.setOrigin(tf::Vector3(b.translation.x, b.translation.y, b.translation.z));
-		b_transform.setRotation(tf::Quaternion(b.rotation.x, b.rotation.y, b.rotation.z, b.rotation.w));
-
-		br.sendTransform(tf::StampedTransform(b_transform, ros::Time::now(), "a", "b"));
-
-		c_transform = a_transform * b_transform;
-
-		br.sendTransform(tf::StampedTransform(c_transform, ros::Time::now(), "map", "c"));
-
-		ros::Rate(1).sleep();
+//		cout << "got mouse " << x <<","<< y <<endl;
 	}
 }
+
+int main (int argc, char * const argv[]) {
+    Mat img(500, 500, CV_8UC3);
+    KalmanFilter KF(4, 2, 0);
+    KalmanFilter KF2(4, 2, 0);
+    Mat_<float> state(4, 1); /* (x, y, Vx, Vy) */
+    Mat processNoise(4, 1, CV_32F);
+    Mat_<float> measurement(2,1); measurement.setTo(Scalar(0));
+    char code = (char)-1;
+
+	namedWindow("mouse kalman");
+	setMouseCallback("mouse kalman", on_mouse, 0);
+
+    for(;;)
+    {
+		if (mouse_info.x < 0 || mouse_info.y < 0) {
+			imshow("mouse kalman", img);
+			waitKey(30);
+			continue;
+		}
+        KF.statePre.at<float>(0) = mouse_info.x;
+		KF.statePre.at<float>(1) = mouse_info.y;
+		KF.statePre.at<float>(2) = 0;
+		KF.statePre.at<float>(3) = 0;
+		KF.transitionMatrix = *(Mat_<float>(4, 4) << 1,0,0.5,0,   0,1,0,0.5,  0,0,1,0,  0,0,0,1);
+
+		KF2.statePre.at<float>(0) = mouse_info.x;
+		KF2.statePre.at<float>(1) = mouse_info.y;
+		KF2.statePre.at<float>(2) = 0;
+		KF2.statePre.at<float>(3) = 0;
+		KF2.transitionMatrix = *(Mat_<float>(4, 4) << 1,0,0.5,0,   0,1,0,0.5,  0,0,1,0,  0,0,0,1);
+
+        setIdentity(KF.measurementMatrix);
+        setIdentity(KF.processNoiseCov, Scalar::all(1e-3));
+        setIdentity(KF.measurementNoiseCov, Scalar::all(1e-1));
+        setIdentity(KF.errorCovPost, Scalar::all(1e-1));
+
+        setIdentity(KF2.measurementMatrix);
+		setIdentity(KF2.processNoiseCov, Scalar::all(1e-3));
+		setIdentity(KF2.measurementNoiseCov, Scalar::all(1e-1));
+		setIdentity(KF2.errorCovPost, Scalar::all(1e-1));
+
+		mousev.clear();
+		kalmanv.clear();
+		secondkalmanv.clear();
+        //randn(KF.statePost, Scalar::all(0), Scalar::all(0.1));
+
+		double ticks = (double)cv::getTickCount();
+
+        for(;;)
+        {
+        	double precTick = ticks;
+
+			ticks = (double)cv::getTickCount();
+
+			double dT = (ticks - precTick) / cv::getTickFrequency();
+
+//            Point statePt(state(0),state(1));
+
+            Mat prediction = KF.predict();
+            Mat prediction2 = KF2.predict();
+            Point predictPt(prediction.at<float>(0),prediction.at<float>(1));
+            Point predictPt2(prediction2.at<float>(0),prediction2.at<float>(1));
+
+            measurement(0) = mouse_info.x;
+			measurement(1) = mouse_info.y;
+			KF.transitionMatrix.at<float>(2) = dT;
+			KF.transitionMatrix.at<float>(7) = dT;
+			KF2.transitionMatrix.at<float>(2) = dT;
+			KF2.transitionMatrix.at<float>(7) = dT;
+
+			Point measPt(measurement(0),measurement(1));
+			if(mousev.size() >= 90)
+			{
+				mousev.pop_front();
+			}
+			mousev.push_back(measPt);
+            // generate measurement
+            //measurement += KF.measurementMatrix*state;
+
+			Mat estimated = KF.correct(measurement);
+			Point statePt(estimated.at<float>(0),estimated.at<float>(1));
+			if(kalmanv.size() >= 90)
+			{
+				kalmanv.pop_front();
+			}
+			kalmanv.push_back(statePt);
+
+			measurement(0) = estimated.at<float>(0);
+			measurement(1) = estimated.at<float>(1);
+
+			Mat estimated2 = KF2.correct(measurement);
+			Point statePt2(estimated2.at<float>(0),estimated2.at<float>(1));
+			if(secondkalmanv.size() >= 90)
+			{
+				secondkalmanv.pop_front();
+			}
+			secondkalmanv.push_back(statePt2);
+
+
+            // plot points
+#define drawCross( center, color, d )                                 \
+line( img, Point( center.x - d, center.y - d ),                \
+Point( center.x + d, center.y + d ), color, 2, CV_AA, 0); \
+line( img, Point( center.x + d, center.y - d ),                \
+Point( center.x - d, center.y + d ), color, 2, CV_AA, 0 )
+
+            img = Scalar::all(0);
+            drawCross( statePt2, Scalar(255, 255, 255), 5);
+            drawCross( statePt, Scalar(255,255,255), 5 );
+            drawCross( measPt, Scalar(255,255,255), 5 );
+//            drawCross( predictPt, Scalar(0,255,0), 3 );
+//			line( img, statePt, measPt, Scalar(0,0,255), 3, CV_AA, 0 );
+//			line( img, statePt, predictPt, Scalar(0,255,255), 3, CV_AA, 0 );
+
+			for (int i = 0; i < mousev.size()-1; i++) {
+				line(img, mousev[i], mousev[i+1], Scalar(255,0,0), 1);
+			}
+			for (int i = 0; i < kalmanv.size()-1; i++) {
+				line(img, kalmanv[i], kalmanv[i+1], Scalar(0,255,0), 1);
+			}
+			for (int i = 0; i < secondkalmanv.size()-1; i++) {
+				line(img, secondkalmanv[i], secondkalmanv[i+1], Scalar(0,0,255), 1);
+			}
+
+
+//            randn( processNoise, Scalar(0), Scalar::all(sqrt(KF.processNoiseCov.at<float>(0, 0))));
+//            state = KF.transitionMatrix*state + processNoise;
+
+            imshow( "mouse kalman", img );
+            code = (char)waitKey(30);
+
+            if( code > 0 )
+                break;
+        }
+        if( code == 27 || code == 'q' || code == 'Q' )
+            break;
+    }
+
+    return 0;
+}
+

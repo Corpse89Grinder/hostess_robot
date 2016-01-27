@@ -82,7 +82,7 @@ add_executable(follow_me src/follow_me.cpp)
 target_link_libraries(follow_me ${catkin_LIBRARIES})
 
 add_executable(kalman_filter src/kalman/kalman_filter.cpp)
-target_link_libraries(kalman_filter ${catkin_LIBRARIES})
+target_link_libraries(kalman_filter ${OpenCV_LIBS} ${catkin_LIBRARIES})
 				     
 add_executable(identity_setter src/identity_setter.cpp)
 target_link_libraries(identity_setter ${catkin_LIBRARIES})

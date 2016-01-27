@@ -93,11 +93,7 @@ int main(int argc, char** argv)
 			}
 
 			tf::Quaternion panOrientation;
-			double yaw = pan_controller.getRotation();
-
-			ROS_INFO("Pan YAW: %f", yaw);
-
-			panOrientation.setRPY(0, 0, yaw);
+			panOrientation.setRPY(0, 0, pan_controller.getRotation());
 
 			tf::Transform panTransform;
 			panTransform.setOrigin(tf::Vector3(0, 0, 0.05));
@@ -185,6 +181,13 @@ int main(int argc, char** argv)
 				{
 					ratio = 1;
 				}
+			}
+			else
+			{
+				ROS_INFO("Going too fast");
+				//speed_to_rotate.pop_front();
+				//speed_to_rotate.push_back(0);
+				//pan_controller.standStill();
 			}
 
 			ros::spinOnce();
