@@ -11,7 +11,7 @@
 #include <opencv2/video/tracking.hpp>
 
 #define MAX_USERS 15
-#define DISTANCE_THRESHOLD 0.8
+#define DISTANCE_THRESHOLD 0.75
 
 std::string genericUserCalibrationFileName;
 
@@ -319,10 +319,10 @@ void kalmanInitialization()
 	kf1.measurementMatrix.at<float>(7) = 1.0f;
 	kf1.measurementMatrix.at<float>(14) = 1.0f;
 
-	cv::setIdentity(kf1.processNoiseCov, cv::Scalar(1e-2));
-	kf1.processNoiseCov.at<float>(21) = 1e1;
-	kf1.processNoiseCov.at<float>(28) = 1e1;
-	kf1.processNoiseCov.at<float>(35) = 1e1;
+	cv::setIdentity(kf1.processNoiseCov, cv::Scalar(1e-3));
+	kf1.processNoiseCov.at<float>(21) = 1e0;
+	kf1.processNoiseCov.at<float>(28) = 1e0;
+	kf1.processNoiseCov.at<float>(35) = 1e0;
 	cv::setIdentity(kf1.measurementNoiseCov, cv::Scalar(1e-2));
 	cv::setIdentity(kf1.errorCovPost, cv::Scalar(1e-1));
 
@@ -338,10 +338,10 @@ void kalmanInitialization()
 	kf2.measurementMatrix.at<float>(7) = 1.0f;
 	kf2.measurementMatrix.at<float>(14) = 1.0f;
 
-	cv::setIdentity(kf2.processNoiseCov, cv::Scalar(1e-2));
-	kf2.processNoiseCov.at<float>(21) = 1e1;
-	kf2.processNoiseCov.at<float>(28) = 1e1;
-	kf2.processNoiseCov.at<float>(35) = 1e1;
+	cv::setIdentity(kf2.processNoiseCov, cv::Scalar(1e-3));
+	kf2.processNoiseCov.at<float>(21) = 1e0;
+	kf2.processNoiseCov.at<float>(28) = 1e0;
+	kf2.processNoiseCov.at<float>(35) = 1e0;
 	cv::setIdentity(kf2.measurementNoiseCov, cv::Scalar(1e-2));
 	cv::setIdentity(kf2.errorCovPost, cv::Scalar(1e-1));
 
@@ -520,6 +520,14 @@ bool checkCenterOfMass(XnUserID const& user)
     }
 	else
 	{
+/*		tf::Transform transform;
+		transform.setOrigin(tf::Vector3(center_of_mass.Z / 1000.0, -center_of_mass.X / 1000.0, center_of_mass.Y / 1000.0));
+		transform.setRotation(tf::Quaternion(0, 0, 0, 1));
+
+		static tf::TransformBroadcaster br;
+		br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), frame_id, "CoM"));
+*/
+
 		return true;
 	}
 }
