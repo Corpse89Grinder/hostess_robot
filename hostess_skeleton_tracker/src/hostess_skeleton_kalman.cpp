@@ -71,6 +71,8 @@ bool lost = false;
 
 ros::Time lastStamp;
 
+std::deque<bool> direction(5, true);
+
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "hostess_skeleton_tracker");
@@ -321,8 +323,8 @@ void kalmanInitialization()
 	kf1.processNoiseCov.at<float>(21) = 1e1;
 	kf1.processNoiseCov.at<float>(28) = 1e1;
 	kf1.processNoiseCov.at<float>(35) = 1e1;
-	cv::setIdentity(kf1.measurementNoiseCov, cv::Scalar(1e-1));
-	cv::setIdentity(kf1.errorCovPost, cv::Scalar(1e-1));
+	cv::setIdentity(kf1.measurementNoiseCov, cv::Scalar(1e-2));
+	cv::setIdentity(kf1.errorCovPost, cv::Scalar(1e1));
 
 	kf1.transitionMatrix.at<float>(2) = 1.0f;
 	kf1.transitionMatrix.at<float>(9) = 1.0f;
@@ -340,8 +342,8 @@ void kalmanInitialization()
 	kf2.processNoiseCov.at<float>(21) = 1e1;
 	kf2.processNoiseCov.at<float>(28) = 1e1;
 	kf2.processNoiseCov.at<float>(35) = 1e1;
-	cv::setIdentity(kf2.measurementNoiseCov, cv::Scalar(1e-1));
-	cv::setIdentity(kf2.errorCovPost, cv::Scalar(1e-1));
+	cv::setIdentity(kf2.measurementNoiseCov, cv::Scalar(1e-2));
+	cv::setIdentity(kf2.errorCovPost, cv::Scalar(1e1));
 
 	kf2.transitionMatrix.at<float>(2) = 1.0f;
 	kf2.transitionMatrix.at<float>(9) = 1.0f;
@@ -394,6 +396,46 @@ void kalmanUpdate(tf::Transform transform)
 	}
 	else
 	{
+		/*direction.pop_front();
+
+		ROS_INFO("Delta Y: %f", fabs(meas.at<float>(1) - transform.getOrigin().getY()));
+
+		if(fabs(meas.at<float>(0) - transform.getOrigin().getX()) > fabs(meas.at<float>(1) - transform.getOrigin().getY()))
+		{
+			direction.push_back(true);
+		}
+		else
+		{
+			direction.push_back(false);
+		}
+
+		int counter = 0;
+
+		for(int i = 0; i < direction.size(); ++i)
+		{
+			if(direction[i] == true)
+			{
+				counter++;
+			}
+		}
+
+		if(counter >= 3)
+		{
+			kf1.processNoiseCov.at<float>(21) = 1e1;
+			kf1.processNoiseCov.at<float>(28) = 1;
+
+			kf2.processNoiseCov.at<float>(21) = 1e1;
+			kf2.processNoiseCov.at<float>(28) = 1;
+		}
+		else
+		{
+			kf1.processNoiseCov.at<float>(21) = 1;
+			kf1.processNoiseCov.at<float>(28) = 1e1;
+
+			kf2.processNoiseCov.at<float>(21) = 1;
+			kf2.processNoiseCov.at<float>(28) = 1e1;
+		}
+*/
 		meas.at<float>(0) = transform.getOrigin().getX();
 		meas.at<float>(1) = transform.getOrigin().getY();
 		meas.at<float>(2) = transform.getOrigin().getZ();
@@ -406,11 +448,13 @@ void kalmanUpdate(tf::Transform transform)
 
 		state = kf1.predict();
 
-		meas.at<float>(0) = state.at<float>(0);
-		meas.at<float>(1) = state.at<float>(1);
-		meas.at<float>(2) = state.at<float>(2);
+		cv::Mat meas2(measSize, 1, CV_32F);
 
-		kf2.correct(meas);
+		meas2.at<float>(0) = state.at<float>(0);
+		meas2.at<float>(1) = state.at<float>(1);
+		meas2.at<float>(2) = state.at<float>(2);
+
+		kf2.correct(meas2);
 	}
 }
 
