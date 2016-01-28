@@ -324,7 +324,7 @@ void kalmanInitialization()
 	kf1.processNoiseCov.at<float>(28) = 1e1;
 	kf1.processNoiseCov.at<float>(35) = 1e1;
 	cv::setIdentity(kf1.measurementNoiseCov, cv::Scalar(1e-2));
-	cv::setIdentity(kf1.errorCovPost, cv::Scalar(1e1));
+	cv::setIdentity(kf1.errorCovPost, cv::Scalar(1e-1));
 
 	kf1.transitionMatrix.at<float>(2) = 1.0f;
 	kf1.transitionMatrix.at<float>(9) = 1.0f;
@@ -343,7 +343,7 @@ void kalmanInitialization()
 	kf2.processNoiseCov.at<float>(28) = 1e1;
 	kf2.processNoiseCov.at<float>(35) = 1e1;
 	cv::setIdentity(kf2.measurementNoiseCov, cv::Scalar(1e-2));
-	cv::setIdentity(kf2.errorCovPost, cv::Scalar(1e1));
+	cv::setIdentity(kf2.errorCovPost, cv::Scalar(1e-1));
 
 	kf2.transitionMatrix.at<float>(2) = 1.0f;
 	kf2.transitionMatrix.at<float>(9) = 1.0f;
