@@ -121,7 +121,7 @@ int main(int argc, char** argv)
 
 void lookForEveryHeadTransform(tf::TransformListener& listener, std::vector<tf::StampedTransform>& transforms, std::string user_to_track)
 {
-	for(int i = 1; i <= 6; i++)
+	for(int i = 1; i <= 15; i++)
 	{
 		std::ostringstream oss;
 		oss << "head_" << i;

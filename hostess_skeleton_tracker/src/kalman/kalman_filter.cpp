@@ -49,13 +49,13 @@ int main (int argc, char * const argv[]) {
 		KF.statePre.at<float>(1) = mouse_info.y;
 		KF.statePre.at<float>(2) = 0;
 		KF.statePre.at<float>(3) = 0;
-		KF.transitionMatrix = *(Mat_<float>(4, 4) << 1,0,0.5,0,   0,1,0,0.5,  0,0,1,0,  0,0,0,1);
+		KF.transitionMatrix = *(Mat_<float>(4, 4) << 1,0,1,0,   0,1,0,1,  0,0,1,0,  0,0,0,1);
 
 		KF2.statePre.at<float>(0) = mouse_info.x;
 		KF2.statePre.at<float>(1) = mouse_info.y;
 		KF2.statePre.at<float>(2) = 0;
 		KF2.statePre.at<float>(3) = 0;
-		KF2.transitionMatrix = *(Mat_<float>(4, 4) << 1,0,0.5,0,   0,1,0,0.5,  0,0,1,0,  0,0,0,1);
+		KF2.transitionMatrix = *(Mat_<float>(4, 4) << 1,0,1,0,   0,1,0,1,  0,0,1,0,  0,0,0,1);
 
         setIdentity(KF.measurementMatrix);
         setIdentity(KF.processNoiseCov, Scalar::all(1e-3));
