@@ -354,9 +354,9 @@ void predictAndPublish()
 
 void kalmanPrediction()
 {
-	kf2.transitionMatrix.at<float>(2) = dT;
-	kf2.transitionMatrix.at<float>(9) = dT;
-	kf2.transitionMatrix.at<float>(16) = dT;
+	kf2.transitionMatrix.at<float>(3) = dT;
+	kf2.transitionMatrix.at<float>(10) = dT;
+	kf2.transitionMatrix.at<float>(17) = dT;
 
 	state = kf2.predict();
 }
@@ -432,9 +432,9 @@ void kalmanUpdate(tf::Transform transform)
 
 		kf1.correct(meas);
 
-		kf1.transitionMatrix.at<float>(2) = dT;
-		kf1.transitionMatrix.at<float>(9) = dT;
-		kf1.transitionMatrix.at<float>(16) = dT;
+		kf1.transitionMatrix.at<float>(3) = dT;
+		kf1.transitionMatrix.at<float>(10) = dT;
+		kf1.transitionMatrix.at<float>(17) = dT;
 
 		state = kf1.predict();
 
