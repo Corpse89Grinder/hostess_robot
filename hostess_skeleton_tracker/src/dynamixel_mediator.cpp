@@ -203,12 +203,12 @@ int main(int argc, char** argv)
 				speed_to_rotate.pop_front();
 				speed_to_rotate.push_back(0.0);
 
-                                double speed = 0;
+				double speed = 0;
 
-                                for(int i = 0; i < MAX_MEAN; i++)
-                                {
-                                        speed += speed_to_rotate[i] / MAX_MEAN;
-                                }
+				for(int i = 0; i < MAX_MEAN; i++)
+				{
+						speed += speed_to_rotate[i] / MAX_MEAN;
+				}
 
 				if(speed == 0)
 				{
@@ -216,43 +216,43 @@ int main(int argc, char** argv)
 					pan_controller.standStill();
 				}
 
-                                if(direction == "left")
-                                {
-                                        pan_controller.turnLeft(speed);
-                                }
-                                else if(direction == "right")
-                                {
-                                        pan_controller.turnRight(speed);
-                                }
+				if(direction == "left")
+				{
+						pan_controller.turnLeft(speed);
+				}
+				else if(direction == "right")
+				{
+						pan_controller.turnRight(speed);
+				}
 
 				ratio = std::max(0.0, ratio - 0.01);
 			}
 			else if((returnString == "skip" && skeleton_to_track == -1) || skeleton_to_track == -1)
 			{
 				speed_to_rotate.pop_front();
-                                speed_to_rotate.push_back(0.0);
+				speed_to_rotate.push_back(0.0);
 
-                                double speed = 0;
+				double speed = 0;
 
-                                for(int i = 0; i < MAX_MEAN; i++)
-                                {
-                                        speed += speed_to_rotate[i] / MAX_MEAN;
-                                }
+				for(int i = 0; i < MAX_MEAN; i++)
+				{
+						speed += speed_to_rotate[i] / MAX_MEAN;
+				}
 
-                                if(speed == 0)
-                                {
-                                        direction == "still";
-                                        pan_controller.standStill();
-                                }
+				if(speed == 0)
+				{
+						direction == "still";
+						pan_controller.standStill();
+				}
 
-                                if(direction == "left")
-                                {
-                                        pan_controller.turnLeft(speed);
-                                }
-                                else if(direction == "right")
-                                {
-                                        pan_controller.turnRight(speed);
-                                }
+				if(direction == "left")
+				{
+						pan_controller.turnLeft(speed);
+				}
+				else if(direction == "right")
+				{
+						pan_controller.turnRight(speed);
+				}
 			}
 
 			ros::spinOnce();
