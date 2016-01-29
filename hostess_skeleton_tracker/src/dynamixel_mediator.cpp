@@ -9,7 +9,7 @@
 //Maximum distance from skeleton head and face recognition points in space
 #define DISTANCE_THRESHOLD 0.1
 #define MINIMUM_ASSOCIATIONS_FOR_TRACKING 1
-#define MAX_MEAN 5
+#define MAX_MEAN 10
 
 void lookForEveryHeadTransform(tf::TransformListener&, std::vector<tf::StampedTransform>&, std::string);
 bool findClosestHeadToFace(std::vector<tf::StampedTransform>&, std::string&);
@@ -82,13 +82,15 @@ int main(int argc, char** argv)
 				break;
 			}
 
-			ratio = 0;
+			speed_to_rotate.pop_front();
+			speed_to_rotate.push_back(0);
+
+			ratio = std::max(0.0, ratio - 0.005);
 
 			ros::spinOnce();
 
 			if((ros::Time::now() - reset).sec >= 30 && !pan_controller.isHome())
 			{
-				//ROS_INFO("Going home");
 				pan_controller.goHome();
 			}
 
@@ -125,11 +127,11 @@ int main(int argc, char** argv)
 				//TODO Ho la distanza, in base ad essa restituisco la percentuale di velocità del robot.
 				double distance = std::sqrt(std::pow(transform.getOrigin().getX(), 2) + std::pow(transform.getOrigin().getY(), 2));
 
-				if(transform.getOrigin().getY() > 0.075)
+				if(transform.getOrigin().getY() > 0.025)
 				{
 					//Giro a sinistra
 					speed_to_rotate.pop_front();
-					speed_to_rotate.push_back(3 * acos(transform.getOrigin().getX() / distance));
+					speed_to_rotate.push_back(2.5 * acos(transform.getOrigin().getX() / distance));
 
 					double speed = 0;
 
@@ -142,11 +144,11 @@ int main(int argc, char** argv)
 
 					direction = "left";
 				}
-				else if(transform.getOrigin().getY() < -0.075)
+				else if(transform.getOrigin().getY() < -0.025)
 				{
 					//Giro a destra
 					speed_to_rotate.pop_front();
-					speed_to_rotate.push_back(3 * acos(transform.getOrigin().getX() / distance));
+					speed_to_rotate.push_back(2.5 * acos(transform.getOrigin().getX() / distance));
 
 					double speed = 0;
 
@@ -175,13 +177,9 @@ int main(int argc, char** argv)
 					{
 						ratio = 1;
 					}
-					else if(distance > 1.5 && distance <= 2.5)
+					else if(distance > 1.5)
 					{
-						ratio = 1 - (distance - 1.5);
-					}
-					else if(distance > 2.5)
-					{
-						ratio = 0;
+						ratio = std::max(1 - (distance - 1.5), 0.0);
 					}
 
 					if(ratio < 0)
@@ -195,7 +193,7 @@ int main(int argc, char** argv)
 				}
 				else
 				{
-					ratio = std::max(0.0, ratio - 0.01);
+					ratio = std::max(0.0, ratio - 0.005);
 				}
 			}
 			else if(returnString == "not found")
@@ -225,9 +223,9 @@ int main(int argc, char** argv)
 						pan_controller.turnRight(speed);
 				}
 
-				ratio = std::max(0.0, ratio - 0.01);
+				ratio = std::max(0.0, ratio - 0.005);
 			}
-			else if((returnString == "skip" && skeleton_to_track == -1) || skeleton_to_track == -1)
+			else if(false && (returnString == "skip" && skeleton_to_track == -1) || skeleton_to_track == -1)
 			{
 				speed_to_rotate.pop_front();
 				speed_to_rotate.push_back(0.0);
