@@ -312,7 +312,9 @@ void XN_CALLBACK_TYPE User_OutOfScene(xn::UserGenerator& generator, XnUserID nId
 void kalmanInitialization()
 {
 	cv::setIdentity(kf1.transitionMatrix);
-	cv::setIdentity(kf1.errorCovPre);
+	kf1.transitionMatrix.at<float>(3) = 1.0f;
+	kf1.transitionMatrix.at<float>(10) = 1.0f;
+	kf1.transitionMatrix.at<float>(17) = 1.0f;
 
 	kf1.measurementMatrix = cv::Mat::zeros(measSize, stateSize, CV_32F);
 	kf1.measurementMatrix.at<float>(0) = 1.0f;
@@ -320,18 +322,13 @@ void kalmanInitialization()
 	kf1.measurementMatrix.at<float>(14) = 1.0f;
 
 	cv::setIdentity(kf1.processNoiseCov, cv::Scalar(1e-3));
-	kf1.processNoiseCov.at<float>(21) = 1e0;
-	kf1.processNoiseCov.at<float>(28) = 1e0;
-	kf1.processNoiseCov.at<float>(35) = 1e0;
-	cv::setIdentity(kf1.measurementNoiseCov, cv::Scalar(1e-2));
+	cv::setIdentity(kf1.measurementNoiseCov, cv::Scalar(1e-1));
 	cv::setIdentity(kf1.errorCovPost, cv::Scalar(1e-1));
 
-	kf1.transitionMatrix.at<float>(2) = 1.0f;
-	kf1.transitionMatrix.at<float>(9) = 1.0f;
-	kf1.transitionMatrix.at<float>(16) = 1.0f;
-
 	cv::setIdentity(kf2.transitionMatrix);
-	cv::setIdentity(kf2.errorCovPre);
+	kf2.transitionMatrix.at<float>(3) = 1.0f;
+	kf2.transitionMatrix.at<float>(10) = 1.0f;
+	kf2.transitionMatrix.at<float>(17) = 1.0f;
 
 	kf2.measurementMatrix = cv::Mat::zeros(measSize, stateSize, CV_32F);
 	kf2.measurementMatrix.at<float>(0) = 1.0f;
@@ -339,15 +336,8 @@ void kalmanInitialization()
 	kf2.measurementMatrix.at<float>(14) = 1.0f;
 
 	cv::setIdentity(kf2.processNoiseCov, cv::Scalar(1e-3));
-	kf2.processNoiseCov.at<float>(21) = 1e0;
-	kf2.processNoiseCov.at<float>(28) = 1e0;
-	kf2.processNoiseCov.at<float>(35) = 1e0;
-	cv::setIdentity(kf2.measurementNoiseCov, cv::Scalar(1e-2));
+	cv::setIdentity(kf2.measurementNoiseCov, cv::Scalar(1e-1));
 	cv::setIdentity(kf2.errorCovPost, cv::Scalar(1e-1));
-
-	kf2.transitionMatrix.at<float>(2) = 1.0f;
-	kf2.transitionMatrix.at<float>(9) = 1.0f;
-	kf2.transitionMatrix.at<float>(16) = 1.0f;
 }
 
 void predictAndPublish()
