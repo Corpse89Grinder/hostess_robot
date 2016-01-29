@@ -11,7 +11,8 @@
 #include <opencv2/video/tracking.hpp>
 
 #define MAX_USERS 15
-#define DISTANCE_THRESHOLD 0.75
+#define DISTANCE_THRESHOLD 1
+#define KALMAN_TIMEOUT 5
 
 std::string genericUserCalibrationFileName;
 
@@ -23,7 +24,7 @@ xn::Context        g_Context;
 xn::DepthGenerator g_DepthGenerator;
 xn::UserGenerator  g_UserGenerator;
 
-std::map<int, std::pair<ros::Time, ros::Duration> > users_timeouts;
+std::map<int, bool> new_skeletons_in_scene;
 
 void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator&, XnUserID, void*);
 void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator&, XnUserID, void*);
@@ -168,12 +169,6 @@ int main(int argc, char **argv)
 		{
 			//Tracking phase. I have my user to track, i need to apply the Kalman filter to its torso.
 
-			if(!isTracking)
-			{
-				stopTrackingAll(skeleton_to_track);
-				isTracking = true;
-			}
-
 			ros::Time now = ros::Time::now();
 
 			if(!lost)
@@ -191,7 +186,9 @@ int main(int argc, char **argv)
 				else
 				{
 					lost = true;
-					startTrackingAll();
+					//startTrackingAll();
+					skeleton_to_track = -1;
+					ros::param::set("skeleton_to_track", skeleton_to_track);
 				}
 			}
 			else
@@ -214,7 +211,7 @@ int main(int argc, char **argv)
 					{
 						double current = std::sqrt(std::pow(torso_global.getOrigin().getX() - state.at<float>(0), 2) + std::pow(torso_global.getOrigin().getY() - state.at<float>(1), 2));
 
-						if(current < min)
+						if(current < min && new_skeletons_in_scene[user])
 						{
 							min = current;
 							closer = user;
@@ -222,26 +219,32 @@ int main(int argc, char **argv)
 					}
 				}
 
-				if(closer != 0)
-				{
-					ROS_INFO("%f", min);
-				}
-
 				if(closer != 0 && min < DISTANCE_THRESHOLD)
 				{
 					skeleton_to_track = closer;
 					ros::param::set("skeleton_to_track", skeleton_to_track);
 					lost = false;
+
+					for(int i = 1; i <= MAX_USERS; ++i)
+					{
+						new_skeletons_in_scene[i] = false;
+					}
+
+					ROS_INFO("Reassociating user to skeleton %d", skeleton_to_track);
 				}
 				else
 				{
-					if((now - lastDetected).sec >= 3)
+					if((now - lastDetected).sec >= KALMAN_TIMEOUT)
 					{
 						lost = false;
 						detected = false;
-						isTracking = false;
 						skeleton_to_track = 0;
 						ros::param::set("skeleton_to_track", skeleton_to_track);
+
+						for(int i = 1; i <= MAX_USERS; ++i)
+						{
+							new_skeletons_in_scene[i] = false;
+						}
 					}
 				}
 			}
@@ -261,7 +264,12 @@ int main(int argc, char **argv)
 
 void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
 {
-	ROS_INFO("New User %d.", nId);
+	ROS_INFO("New User %d. Start tracking.", nId);
+
+	if(lost)
+	{
+		new_skeletons_in_scene[nId] = true;
+	}
 
 	if(calibrationData == NULL)
 	{
@@ -273,24 +281,14 @@ void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator& generator, XnUserID nId, v
 		g_UserGenerator.GetSkeletonCap().LoadCalibrationData(nId, calibrationData);
 	}
 
-	int skeleton_to_track;
-	ros::param::get("skeleton_to_track", skeleton_to_track);
-
-	if(skeleton_to_track == 0 || lost)
-	{
-		g_UserGenerator.GetSkeletonCap().StartTracking(nId);
-		ROS_INFO("Start tracking user: %d.", nId);
-	}
+	g_UserGenerator.GetSkeletonCap().StartTracking(nId);
 }
 
 void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
 {
 	ROS_INFO("Lost user %d. Stop tracking.", nId);
 
-	if(g_UserGenerator.GetSkeletonCap().IsTracking(nId))
-	{
-		g_UserGenerator.GetSkeletonCap().StopTracking(nId);
-	}
+	g_UserGenerator.GetSkeletonCap().StopTracking(nId);
 }
 
 void XN_CALLBACK_TYPE User_BackIntoScene(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
@@ -321,7 +319,11 @@ void kalmanInitialization()
 	kf1.measurementMatrix.at<float>(7) = 1.0f;
 	kf1.measurementMatrix.at<float>(14) = 1.0f;
 
-	cv::setIdentity(kf1.processNoiseCov, cv::Scalar(1e-3));
+	cv::setIdentity(kf1.processNoiseCov, cv::Scalar(1e-2));
+	kf1.processNoiseCov.at<float>(21) = 1e-1;
+	kf1.processNoiseCov.at<float>(28) = 1e-1;
+	kf1.processNoiseCov.at<float>(35) = 1e-1;
+
 	cv::setIdentity(kf1.measurementNoiseCov, cv::Scalar(1e-1));
 	cv::setIdentity(kf1.errorCovPost, cv::Scalar(1e-1));
 
@@ -335,7 +337,11 @@ void kalmanInitialization()
 	kf2.measurementMatrix.at<float>(7) = 1.0f;
 	kf2.measurementMatrix.at<float>(14) = 1.0f;
 
-	cv::setIdentity(kf2.processNoiseCov, cv::Scalar(1e-3));
+	cv::setIdentity(kf2.processNoiseCov, cv::Scalar(1e-2));
+	kf2.processNoiseCov.at<float>(21) = 1e-1;
+	kf2.processNoiseCov.at<float>(28) = 1e-1;
+	kf2.processNoiseCov.at<float>(35) = 1e-1;
+
 	cv::setIdentity(kf2.measurementNoiseCov, cv::Scalar(1e-1));
 	cv::setIdentity(kf2.errorCovPost, cv::Scalar(1e-1));
 }

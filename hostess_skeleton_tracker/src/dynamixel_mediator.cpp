@@ -9,11 +9,11 @@
 //Maximum distance from skeleton head and face recognition points in space
 #define DISTANCE_THRESHOLD 0.1
 #define MINIMUM_ASSOCIATIONS_FOR_TRACKING 1
-#define MAX_MEAN 3
+#define MAX_MEAN 5
 
 void lookForEveryHeadTransform(tf::TransformListener&, std::vector<tf::StampedTransform>&, std::string);
 bool findClosestHeadToFace(std::vector<tf::StampedTransform>&, std::string&);
-bool lookForSpecificBodyTransform(tf::TransformListener&, std::string, std::string, tf::StampedTransform&);
+std::string lookForSpecificBodyTransform(tf::TransformListener&, std::string, std::string, tf::StampedTransform&);
 int changeFrameAndReturnIndex(std::string&);
 void twistCallback(geometry_msgs::Twist);
 
@@ -21,10 +21,9 @@ std::map<std::string, std::pair<ros::Time, int> > skeletons;
 std::map<std::string, ros::Time> last_stamp;
 
 double ratio;
+int skeleton_to_track = 0;
 
 ros::Publisher pub;
-
-bool useKalman = false;
 
 int main(int argc, char** argv)
 {
@@ -56,10 +55,11 @@ int main(int argc, char** argv)
     tf::TransformListener listener;
     tf::TransformBroadcaster broadcaster;
 
-    int skeleton_to_track = 0;
     std::deque<double> speed_to_rotate(MAX_MEAN, 0);
 
     ros::param::set("skeleton_to_track", skeleton_to_track);
+
+	std::string direction = "still";
 
     while(nh.ok())
     {
@@ -88,7 +88,7 @@ int main(int argc, char** argv)
 
 			if((ros::Time::now() - reset).sec >= 30 && !pan_controller.isHome())
 			{
-				ROS_INFO("Going home");
+				//ROS_INFO("Going home");
 				pan_controller.goHome();
 			}
 
@@ -118,16 +118,18 @@ int main(int argc, char** argv)
 
 			tf::StampedTransform transform;
 
-			if(lookForSpecificBodyTransform(listener, frame_id, skeleton_to_track_frame, transform))
+			std::string returnString = lookForSpecificBodyTransform(listener, frame_id, skeleton_to_track_frame, transform);
+
+			if(returnString == "found")
 			{
 				//TODO Ho la distanza, in base ad essa restituisco la percentuale di velocità del robot.
 				double distance = std::sqrt(std::pow(transform.getOrigin().getX(), 2) + std::pow(transform.getOrigin().getY(), 2));
 
-				if(transform.getOrigin().getY() > 0.05)
+				if(transform.getOrigin().getY() > 0.075)
 				{
 					//Giro a sinistra
 					speed_to_rotate.pop_front();
-					speed_to_rotate.push_back(2.5 * acos(transform.getOrigin().getX() / distance));
+					speed_to_rotate.push_back(3 * acos(transform.getOrigin().getX() / distance));
 
 					double speed = 0;
 
@@ -137,12 +139,14 @@ int main(int argc, char** argv)
 					}
 
 					pan_controller.turnLeft(speed);
+
+					direction = "left";
 				}
-				else if(transform.getOrigin().getY() < -0.05)
+				else if(transform.getOrigin().getY() < -0.075)
 				{
 					//Giro a destra
 					speed_to_rotate.pop_front();
-					speed_to_rotate.push_back(2.5 * acos(transform.getOrigin().getX() / distance));
+					speed_to_rotate.push_back(3 * acos(transform.getOrigin().getX() / distance));
 
 					double speed = 0;
 
@@ -152,42 +156,103 @@ int main(int argc, char** argv)
 					}
 
 					pan_controller.turnRight(speed);
+
+					direction = "right";
 				}
 				else
 				{
 					speed_to_rotate.pop_front();
 					speed_to_rotate.push_back(0);
+
+					pan_controller.standStill(),
+
+					direction == "still";
+				}
+
+				if(skeleton_to_track != -1)
+				{
+					if(distance >= 0 && distance <= 1.5)
+					{
+						ratio = 1;
+					}
+					else if(distance > 1.5 && distance <= 2.5)
+					{
+						ratio = 1 - (distance - 1.5);
+					}
+					else if(distance > 2.5)
+					{
+						ratio = 0;
+					}
+
+					if(ratio < 0)
+					{
+						ratio = 0;
+					}
+					else if(ratio > 1)
+					{
+						ratio = 1;
+					}
+				}
+				else
+				{
+					ratio = std::max(0.0, ratio - 0.01);
+				}
+			}
+			else if(returnString == "not found")
+			{
+				speed_to_rotate.pop_front();
+				speed_to_rotate.push_back(0.0);
+
+                                double speed = 0;
+
+                                for(int i = 0; i < MAX_MEAN; i++)
+                                {
+                                        speed += speed_to_rotate[i] / MAX_MEAN;
+                                }
+
+				if(speed == 0)
+				{
+					direction == "still";
 					pan_controller.standStill();
 				}
 
-				if(distance >= 0 && distance <= 1.5)
-				{
-					ratio = 1;
-				}
-				else if(distance > 1.5 && distance <= 2.5)
-				{
-					ratio = 1 - (distance - 1.5);
-				}
-				else if(distance > 2.5)
-				{
-					ratio = 0;
-				}
+                                if(direction == "left")
+                                {
+                                        pan_controller.turnLeft(speed);
+                                }
+                                else if(direction == "right")
+                                {
+                                        pan_controller.turnRight(speed);
+                                }
 
-				if(ratio < 0)
-				{
-					ratio = 0;
-				}
-				else if(ratio > 1)
-				{
-					ratio = 1;
-				}
+				ratio = std::max(0.0, ratio - 0.01);
 			}
-			else
+			else if((returnString == "skip" && skeleton_to_track == -1) || skeleton_to_track == -1)
 			{
-				ROS_INFO("Going too fast");
-				//speed_to_rotate.pop_front();
-				//speed_to_rotate.push_back(0);
-				//pan_controller.standStill();
+				speed_to_rotate.pop_front();
+                                speed_to_rotate.push_back(0.0);
+
+                                double speed = 0;
+
+                                for(int i = 0; i < MAX_MEAN; i++)
+                                {
+                                        speed += speed_to_rotate[i] / MAX_MEAN;
+                                }
+
+                                if(speed == 0)
+                                {
+                                        direction == "still";
+                                        pan_controller.standStill();
+                                }
+
+                                if(direction == "left")
+                                {
+                                        pan_controller.turnLeft(speed);
+                                }
+                                else if(direction == "right")
+                                {
+                                        pan_controller.turnRight(speed);
+                                }
 			}
 
 			ros::spinOnce();
@@ -212,7 +277,7 @@ int main(int argc, char** argv)
 
 void lookForEveryHeadTransform(tf::TransformListener& listener, std::vector<tf::StampedTransform>& transforms, std::string user_to_track)
 {
-	for(int i = 1; i <= 6; i++)
+	for(int i = 1; i <= 15; i++)
 	{
 		std::ostringstream oss;
 		oss << "head_" << i;
@@ -283,11 +348,11 @@ bool findClosestHeadToFace(std::vector<tf::StampedTransform>& transforms, std::s
 	return false;
 }
 
-bool lookForSpecificBodyTransform(tf::TransformListener& listener, std::string frame_id, std::string body_to_track_frame, tf::StampedTransform& transform)
+std::string lookForSpecificBodyTransform(tf::TransformListener& listener, std::string frame_id, std::string body_to_track_frame, tf::StampedTransform& transform)
 {
 	try
 	{
-		if(useKalman)
+		if(skeleton_to_track == -1)
 		{
 			listener.lookupTransform(frame_id, "torso_k", ros::Time(0), transform);
 		}
@@ -300,16 +365,16 @@ bool lookForSpecificBodyTransform(tf::TransformListener& listener, std::string f
 		{
 			last_stamp[body_to_track_frame] = transform.stamp_;
 
-			return true;
+			return "found";
 		}
 		else
 		{
-			return false;
+			return "skip";
 		}
 	}
 	catch(tf::TransformException &ex)
 	{
-		return false;
+		return "not found";
 	}
 }
 
