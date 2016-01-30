@@ -46,9 +46,6 @@ bool checkCenterOfMass(XnUserID const&);
 
 bool updateParent();
 
-void stopTrackingAll(int);
-void startTrackingAll();
-
 tf::StampedTransform parentTransform;
 
 //--------------Kalman Filter-----------------
@@ -71,8 +68,6 @@ bool isTracking = false;
 bool lost = false;
 
 ros::Time lastStamp;
-
-std::deque<bool> direction(5, true);
 
 int main(int argc, char **argv)
 {
@@ -151,6 +146,8 @@ int main(int argc, char **argv)
 	{
 		updateParent();
 
+		ros::Time now = ros::Time::now();
+
 		double precTick = ticks;
 
 		ticks = (double)cv::getTickCount();
@@ -165,94 +162,98 @@ int main(int argc, char **argv)
 
 			publishAllTransforms();
 		}
-		else
+		else if(skeleton_to_track > 0)
 		{
 			//Tracking phase. I have my user to track, i need to apply the Kalman filter to its torso.
 
-			ros::Time now = ros::Time::now();
+			tf::Transform torso_local, torso_global, head_local, head_global;
 
-			if(!lost)
+			if(calcUserTransforms(skeleton_to_track, torso_local, torso_global, head_local, head_global))
 			{
-				tf::Transform torso_local, torso_global, head_local, head_global;
+				publishUserTransforms(skeleton_to_track, torso_local, torso_global, head_local, head_global, now);
 
-				if(calcUserTransforms(skeleton_to_track, torso_local, torso_global, head_local, head_global))
-				{
-					publishUserTransforms(skeleton_to_track, torso_local, torso_global, head_local, head_global, now);
+				kalmanUpdate(torso_global);
 
-					kalmanUpdate(torso_global);
-
-					lastDetected = now;
-				}
-				else
-				{
-					lost = true;
-					//startTrackingAll();
-					skeleton_to_track = -1;
-					ros::param::set("skeleton_to_track", skeleton_to_track);
-				}
+				lastDetected = now;
 			}
 			else
 			{
-				XnUInt16 users_count = MAX_USERS;
-				XnUserID users[MAX_USERS];
-
-				g_UserGenerator.GetUsers(users, users_count);
-
-				int closer = 0;
-				double min = std::numeric_limits<double>::max();
-
-				for(int i = 0; i < users_count; ++i)
+				if(detected)
 				{
-					XnUserID user = users[i];
+					skeleton_to_track = -1;
+					ros::param::set("skeleton_to_track", skeleton_to_track);
+				}
+				else
+				{
+					skeleton_to_track = 0;
+					ros::param::set("skeleton_to_track", skeleton_to_track);
+				}
+			}
 
-					tf::Transform torso_local, torso_global, head_local, head_global;
+			predictAndPublish();
+		}
+		else if(skeleton_to_track == -1)
+		{
+			XnUInt16 users_count = MAX_USERS;
+			XnUserID users[MAX_USERS];
 
-					if(calcUserTransforms(user, torso_local, torso_global, head_local, head_global))
+			g_UserGenerator.GetUsers(users, users_count);
+
+			int closer = 0;
+			double min = std::numeric_limits<double>::max();
+
+			for(int i = 0; i < users_count; ++i)
+			{
+				XnUserID user = users[i];
+
+				tf::Transform torso_local, torso_global, head_local, head_global;
+
+				if(calcUserTransforms(user, torso_local, torso_global, head_local, head_global))
+				{
+					double current = std::sqrt(std::pow(torso_global.getOrigin().getX() - state.at<float>(0), 2) + std::pow(torso_global.getOrigin().getY() - state.at<float>(1), 2));
+
+					if(current < min && new_skeletons_in_scene[user])
 					{
-						double current = std::sqrt(std::pow(torso_global.getOrigin().getX() - state.at<float>(0), 2) + std::pow(torso_global.getOrigin().getY() - state.at<float>(1), 2));
-
-						if(current < min && new_skeletons_in_scene[user])
-						{
-							min = current;
-							closer = user;
-						}
+						min = current;
+						closer = user;
 					}
 				}
+			}
 
-				if(closer != 0 && min < DISTANCE_THRESHOLD)
+			if(closer != 0 && min < DISTANCE_THRESHOLD)
+			{
+				skeleton_to_track = closer;
+				ros::param::set("skeleton_to_track", skeleton_to_track);
+
+				for(int i = 1; i <= MAX_USERS; ++i)
 				{
-					skeleton_to_track = closer;
-					ros::param::set("skeleton_to_track", skeleton_to_track);
+					new_skeletons_in_scene[i] = false;
+				}
+
+				ROS_INFO("Re-associating user to skeleton %d", skeleton_to_track);
+			}
+			else
+			{
+				if((now - lastDetected).sec >= KALMAN_TIMEOUT)
+				{
 					lost = false;
+					detected = false;
+					skeleton_to_track = 0;
+					ros::param::set("skeleton_to_track", skeleton_to_track);
 
 					for(int i = 1; i <= MAX_USERS; ++i)
 					{
 						new_skeletons_in_scene[i] = false;
 					}
-
-					ROS_INFO("Reassociating user to skeleton %d", skeleton_to_track);
 				}
-				else
-				{
-					if((now - lastDetected).sec >= KALMAN_TIMEOUT)
-					{
-						lost = false;
-						detected = false;
-						skeleton_to_track = 0;
-						ros::param::set("skeleton_to_track", skeleton_to_track);
 
-						for(int i = 1; i <= MAX_USERS; ++i)
-						{
-							new_skeletons_in_scene[i] = false;
-						}
-					}
-				}
+				ROS_INFO("Could not re-associate using kalman filter, returning to facial recognition re-association");
 			}
+		}
 
-			if(detected)
-			{
-				predictAndPublish();
-			}
+		if(detected)
+		{
+			predictAndPublish();
 		}
 
 		ros::Rate(30).sleep();
@@ -392,46 +393,6 @@ void kalmanUpdate(tf::Transform transform)
 	}
 	else
 	{
-		/*direction.pop_front();
-
-		ROS_INFO("Delta Y: %f", fabs(meas.at<float>(1) - transform.getOrigin().getY()));
-
-		if(fabs(meas.at<float>(0) - transform.getOrigin().getX()) > fabs(meas.at<float>(1) - transform.getOrigin().getY()))
-		{
-			direction.push_back(true);
-		}
-		else
-		{
-			direction.push_back(false);
-		}
-
-		int counter = 0;
-
-		for(int i = 0; i < direction.size(); ++i)
-		{
-			if(direction[i] == true)
-			{
-				counter++;
-			}
-		}
-
-		if(counter >= 3)
-		{
-			kf1.processNoiseCov.at<float>(21) = 1e1;
-			kf1.processNoiseCov.at<float>(28) = 1;
-
-			kf2.processNoiseCov.at<float>(21) = 1e1;
-			kf2.processNoiseCov.at<float>(28) = 1;
-		}
-		else
-		{
-			kf1.processNoiseCov.at<float>(21) = 1;
-			kf1.processNoiseCov.at<float>(28) = 1e1;
-
-			kf2.processNoiseCov.at<float>(21) = 1;
-			kf2.processNoiseCov.at<float>(28) = 1e1;
-		}
-*/
 		meas.at<float>(0) = transform.getOrigin().getX();
 		meas.at<float>(1) = transform.getOrigin().getY();
 		meas.at<float>(2) = transform.getOrigin().getZ();
@@ -516,14 +477,6 @@ bool checkCenterOfMass(XnUserID const& user)
     }
 	else
 	{
-/*		tf::Transform transform;
-		transform.setOrigin(tf::Vector3(center_of_mass.Z / 1000.0, -center_of_mass.X / 1000.0, center_of_mass.Y / 1000.0));
-		transform.setRotation(tf::Quaternion(0, 0, 0, 1));
-
-		static tf::TransformBroadcaster br;
-		br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), frame_id, "CoM"));
-*/
-
 		return true;
 	}
 }
@@ -598,38 +551,5 @@ bool updateParent()
 	catch(tf::TransformException& ex)
 	{
 		return false;
-	}
-}
-
-void stopTrackingAll(int current_user)
-{
-	XnUInt16 users_count = MAX_USERS;
-	XnUserID users[MAX_USERS];
-
-	g_UserGenerator.GetUsers(users, users_count);
-
-	for(int i = 0; i < users_count; ++i)
-	{
-		XnUserID user = users[i];
-
-		if(user != current_user && g_UserGenerator.GetSkeletonCap().IsTracking(user))
-		{
-			g_UserGenerator.GetSkeletonCap().StopTracking(user);
-		}
-	}
-}
-
-void startTrackingAll()
-{
-	XnUInt16 users_count = MAX_USERS;
-	XnUserID users[MAX_USERS];
-
-	g_UserGenerator.GetUsers(users, users_count);
-
-	for(int i = 0; i < users_count; ++i)
-	{
-		XnUserID user = users[i];
-
-		g_UserGenerator.GetSkeletonCap().StartTracking(user);
 	}
 }

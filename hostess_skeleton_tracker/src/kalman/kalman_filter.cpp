@@ -38,13 +38,6 @@ int main (int argc, char * const argv[]) {
 	namedWindow("mouse kalman");
 	setMouseCallback("mouse kalman", on_mouse, 0);
 
-    for(;;)
-    {
-		if (mouse_info.x < 0 || mouse_info.y < 0) {
-			imshow("mouse kalman", img);
-			waitKey(30);
-			continue;
-		}
         KF.statePre.at<float>(0) = mouse_info.x;
 		KF.statePre.at<float>(1) = mouse_info.y;
 		KF.statePre.at<float>(2) = 0;
@@ -160,9 +153,6 @@ Point( center.x - d, center.y + d ), color, 2, CV_AA, 0 )
             if( code > 0 )
                 break;
         }
-        if( code == 27 || code == 'q' || code == 'Q' )
-            break;
-    }
 
     return 0;
 }

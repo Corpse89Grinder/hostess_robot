@@ -11,6 +11,8 @@
 #define MINIMUM_ASSOCIATIONS_FOR_TRACKING 1
 #define MAX_MEAN 10
 
+#define PI 3.14159265358979323846
+
 void lookForEveryHeadTransform(tf::TransformListener&, std::vector<tf::StampedTransform>&, std::string);
 bool findClosestHeadToFace(std::vector<tf::StampedTransform>&, std::string&);
 std::string lookForSpecificBodyTransform(tf::TransformListener&, std::string, std::string, tf::StampedTransform&);
@@ -126,12 +128,13 @@ int main(int argc, char** argv)
 			{
 				//TODO Ho la distanza, in base ad essa restituisco la percentuale di velocità del robot.
 				double distance = std::sqrt(std::pow(transform.getOrigin().getX(), 2) + std::pow(transform.getOrigin().getY(), 2));
+				double alpha = asin(transform.getOrigin().getY() / distance);
 
-				if(transform.getOrigin().getY() > 0.025)
+				if(alpha > 1)
 				{
 					//Giro a sinistra
 					speed_to_rotate.pop_front();
-					speed_to_rotate.push_back(2.5 * acos(transform.getOrigin().getX() / distance));
+					speed_to_rotate.push_back(fabs(alpha) * PI / 180);
 
 					double speed = 0;
 
@@ -144,11 +147,11 @@ int main(int argc, char** argv)
 
 					direction = "left";
 				}
-				else if(transform.getOrigin().getY() < -0.025)
+				else if(alpha < 1)
 				{
 					//Giro a destra
 					speed_to_rotate.pop_front();
-					speed_to_rotate.push_back(2.5 * acos(transform.getOrigin().getX() / distance));
+					speed_to_rotate.push_back(fabs(alpha) * PI / 180);
 
 					double speed = 0;
 
@@ -163,8 +166,7 @@ int main(int argc, char** argv)
 				}
 				else
 				{
-					speed_to_rotate.pop_front();
-					speed_to_rotate.push_back(0);
+					speed_to_rotate = std::deque<double>(MAX_MEAN, 0);
 
 					pan_controller.standStill(),
 
@@ -225,7 +227,7 @@ int main(int argc, char** argv)
 
 				ratio = std::max(0.0, ratio - 0.005);
 			}
-			else if(false && (returnString == "skip" && skeleton_to_track == -1) || skeleton_to_track == -1)
+			else if((returnString == "skip" && skeleton_to_track == -1) || skeleton_to_track == -1)
 			{
 				speed_to_rotate.pop_front();
 				speed_to_rotate.push_back(0.0);
