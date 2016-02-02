@@ -13,7 +13,7 @@ import json, roslib, rospy, actionlib, yaml, os
 from cob_people_detection.msg import addDataAction, addDataGoal, deleteDataAction, deleteDataGoal, loadModelAction, loadModelGoal
 from collections import namedtuple
 
-f = open(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'config/jol_gui.yaml'))
+f = open(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'config/map.yaml'))
 map = yaml.safe_load(f)
 f.close()
 
