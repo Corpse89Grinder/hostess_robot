@@ -245,9 +245,9 @@ int main(int argc, char **argv)
 					{
 						new_skeletons_in_scene[i] = false;
 					}
-				}
 
-				ROS_INFO("Could not re-associate using kalman filter, returning to facial recognition re-association");
+					ROS_INFO("Could not re-associate using kalman filter, returning to facial recognition re-association");
+				}
 			}
 		}
 

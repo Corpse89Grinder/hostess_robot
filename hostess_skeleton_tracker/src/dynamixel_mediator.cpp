@@ -128,13 +128,13 @@ int main(int argc, char** argv)
 			{
 				//TODO Ho la distanza, in base ad essa restituisco la percentuale di velocità del robot.
 				double distance = std::sqrt(std::pow(transform.getOrigin().getX(), 2) + std::pow(transform.getOrigin().getY(), 2));
-				double alpha = asin(transform.getOrigin().getY() / distance);
-
+				double alpha = asin(transform.getOrigin().getX() / distance);
+ROS_INFO("%f", alpha);
 				if(alpha > 1)
 				{
-					//Giro a sinistra
+//					ROS_INFO("Giro a sinistra");
 					speed_to_rotate.pop_front();
-					speed_to_rotate.push_back(fabs(alpha) * PI / 180);
+					speed_to_rotate.push_back(fabs(alpha) / 5);
 
 					double speed = 0;
 
@@ -142,16 +142,16 @@ int main(int argc, char** argv)
 					{
 						speed += speed_to_rotate[i] / MAX_MEAN;
 					}
-
+		//			ROS_INFO("%f", speed);
 					pan_controller.turnLeft(speed);
 
 					direction = "left";
 				}
 				else if(alpha < 1)
 				{
-					//Giro a destra
+		//			ROS_INFO("Giro a destra");
 					speed_to_rotate.pop_front();
-					speed_to_rotate.push_back(fabs(alpha) * PI / 180);
+					speed_to_rotate.push_back(fabs(alpha) / 5);
 
 					double speed = 0;
 
@@ -161,7 +161,7 @@ int main(int argc, char** argv)
 					}
 
 					pan_controller.turnRight(speed);
-
+		//			ROS_INFO("%f", speed);
 					direction = "right";
 				}
 				else
