@@ -212,7 +212,7 @@ int main(int argc, char **argv)
 				{
 					double current = std::sqrt(std::pow(torso_global.getOrigin().getX() - state.at<float>(0), 2) + std::pow(torso_global.getOrigin().getY() - state.at<float>(1), 2));
 
-					if(current < min && new_skeletons_in_scene[user])
+					if(current < min)// && new_skeletons_in_scene[user])
 					{
 						min = current;
 						closer = user;

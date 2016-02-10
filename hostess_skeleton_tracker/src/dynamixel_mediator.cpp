@@ -128,13 +128,16 @@ int main(int argc, char** argv)
 			{
 				//TODO Ho la distanza, in base ad essa restituisco la percentuale di velocità del robot.
 				double distance = std::sqrt(std::pow(transform.getOrigin().getX(), 2) + std::pow(transform.getOrigin().getY(), 2));
-				double alpha = asin(transform.getOrigin().getX() / distance);
-ROS_INFO("%f", alpha);
-				if(alpha > 1)
+
+				double alphaRAD = asin(transform.getOrigin().getY() / distance);
+
+				double alphaDEG = alphaRAD / PI * 180;
+				//Alpha = angolo espresso in gradi
+
+				if(alphaDEG > 2)
 				{
-//					ROS_INFO("Giro a sinistra");
 					speed_to_rotate.pop_front();
-					speed_to_rotate.push_back(fabs(alpha) / 5);
+					speed_to_rotate.push_back(((fabs(alphaDEG) - 2) / 180 * PI) * 3);
 
 					double speed = 0;
 
@@ -142,16 +145,15 @@ ROS_INFO("%f", alpha);
 					{
 						speed += speed_to_rotate[i] / MAX_MEAN;
 					}
-		//			ROS_INFO("%f", speed);
+
 					pan_controller.turnLeft(speed);
 
 					direction = "left";
 				}
-				else if(alpha < 1)
+				else if(alphaDEG < -2)
 				{
-		//			ROS_INFO("Giro a destra");
 					speed_to_rotate.pop_front();
-					speed_to_rotate.push_back(fabs(alpha) / 5);
+					speed_to_rotate.push_back(((fabs(alphaDEG) - 2) / 180 * PI) * 3);
 
 					double speed = 0;
 
@@ -161,7 +163,7 @@ ROS_INFO("%f", alpha);
 					}
 
 					pan_controller.turnRight(speed);
-		//			ROS_INFO("%f", speed);
+
 					direction = "right";
 				}
 				else
@@ -227,7 +229,7 @@ ROS_INFO("%f", alpha);
 
 				ratio = std::max(0.0, ratio - 0.005);
 			}
-			else if((returnString == "skip" && skeleton_to_track == -1) || skeleton_to_track == -1)
+			else if(false && ((returnString == "skip" && skeleton_to_track == -1) || skeleton_to_track == -1))
 			{
 				speed_to_rotate.pop_front();
 				speed_to_rotate.push_back(0.0);
