@@ -57,7 +57,7 @@ target_link_libraries(hostess_skeleton_tracker
 	${orocos_kdl_LIBRARIES}
 )
 
-add_executable(multiple_skeleton_tracker src/kalman/multiple_skeleton_tracker.cpp)
+add_executable(multiple_skeleton_tracker src/multiple_skeleton_tracker.cpp)
 
 add_dependencies(multiple_skeleton_tracker geometry_msgs_gencpp)
 
