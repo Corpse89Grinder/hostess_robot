@@ -24,7 +24,7 @@ xn::Context        g_Context;
 xn::DepthGenerator g_DepthGenerator;
 xn::UserGenerator  g_UserGenerator;
 
-std::map<int, bool> new_skeletons_in_scene;
+std::map<int, double> distances;
 
 void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator&, XnUserID, void*);
 void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator&, XnUserID, void*);
@@ -65,7 +65,6 @@ double dT;
 int notFoundCount = 0;
 bool detected = false;
 bool isTracking = false;
-bool lost = false;
 
 ros::Time lastStamp;
 
@@ -200,7 +199,6 @@ int main(int argc, char **argv)
 			g_UserGenerator.GetUsers(users, users_count);
 
 			int closer = 0;
-			double min = std::numeric_limits<double>::max();
 
 			for(int i = 0; i < users_count; ++i)
 			{
@@ -212,38 +210,73 @@ int main(int argc, char **argv)
 				{
 					double current = std::sqrt(std::pow(torso_global.getOrigin().getX() - state.at<float>(0), 2) + std::pow(torso_global.getOrigin().getY() - state.at<float>(1), 2));
 
-					if(current < min)// && new_skeletons_in_scene[user])
+					if(current < distances[user])
 					{
-						min = current;
-						closer = user;
+						distances[user] = current;
 					}
 				}
 			}
 
-			if(closer != 0 && min < DISTANCE_THRESHOLD)
+//			if(closer != 0 && min < DISTANCE_THRESHOLD)
+//			{
+//				//skeleton_to_track = closer;
+//				//ros::param::set("skeleton_to_track", skeleton_to_track);
+//
+//				//for(int i = 1; i <= MAX_USERS; ++i)
+//				{
+//					new_skeletons_in_scene[closer]++;
+//				}
+//
+//				//ROS_INFO("Re-associating user to skeleton %d", skeleton_to_track);
+//			}
+
+			double min = std::numeric_limits<double>::max();
+
+			for(int i = 1; i <= MAX_USERS; ++i)
+			{
+				if(distances[i] < min)
+				{
+					min = distances[i];
+					closer = i;
+				}
+			}
+
+			if(min <= (DISTANCE_THRESHOLD / 2))
 			{
 				skeleton_to_track = closer;
 				ros::param::set("skeleton_to_track", skeleton_to_track);
 
 				for(int i = 1; i <= MAX_USERS; ++i)
 				{
-					new_skeletons_in_scene[i] = false;
+					distances[i] = std::numeric_limits<double>::max();
 				}
 
-				ROS_INFO("Re-associating user to skeleton %d", skeleton_to_track);
+				ROS_INFO("Re-associating user to skeleton %d, distance %f.", skeleton_to_track, min);
 			}
-			else
+
+			if((now - lastDetected).sec >= KALMAN_TIMEOUT)
 			{
-				if((now - lastDetected).sec >= KALMAN_TIMEOUT)
+				if(min <= DISTANCE_THRESHOLD)
 				{
-					lost = false;
+					skeleton_to_track = closer;
+					ros::param::set("skeleton_to_track", skeleton_to_track);
+
+					for(int i = 1; i <= MAX_USERS; ++i)
+					{
+						distances[i] = std::numeric_limits<double>::max();
+					}
+
+					ROS_INFO("Timeout reached, re-associating user to skeleton %d, distance %f.", skeleton_to_track, min);
+				}
+				else
+				{
 					detected = false;
 					skeleton_to_track = 0;
 					ros::param::set("skeleton_to_track", skeleton_to_track);
 
 					for(int i = 1; i <= MAX_USERS; ++i)
 					{
-						new_skeletons_in_scene[i] = false;
+						distances[i] = std::numeric_limits<double>::max();
 					}
 
 					ROS_INFO("Could not re-associate using kalman filter, returning to facial recognition re-association");
@@ -266,11 +299,6 @@ int main(int argc, char **argv)
 void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
 {
 	ROS_INFO("New User %d. Start tracking.", nId);
-
-	if(lost)
-	{
-		new_skeletons_in_scene[nId] = true;
-	}
 
 	if(calibrationData == NULL)
 	{
