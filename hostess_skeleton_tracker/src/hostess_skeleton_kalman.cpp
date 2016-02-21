@@ -262,6 +262,8 @@ int main(int argc, char **argv)
 				}
 
 				ROS_INFO("Re-associating user to skeleton %d, distance %f.", skeleton_to_track, min);
+				
+				continue;
 			}
 
 			if((now - lastDetected).sec >= KALMAN_TIMEOUT)
