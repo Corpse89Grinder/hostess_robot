@@ -6,6 +6,9 @@
 #include <opencv2/video/tracking.hpp>
 //#include <opencv2/highgui/highgui_c.h>
 
+#define PI 3.14159265358979323846
+#define C 1.1547005383792515291871035014902
+
 using namespace cv;
 using namespace std;
 
@@ -27,7 +30,7 @@ void on_mouse(int event, int x, int y, int flags, void* param) {
 }
 
 int main (int argc, char * const argv[]) {
-    Mat img(500, 500, CV_8UC3);
+    Mat img(800, 800, CV_8UC3);
     KalmanFilter KF(4, 2, 0);
     KalmanFilter KF2(4, 2, 0);
     Mat_<float> state(4, 1); /* (x, y, Vx, Vy) */
@@ -67,6 +70,10 @@ int main (int argc, char * const argv[]) {
 
 		double ticks = (double)cv::getTickCount();
 
+		Point oldpoint;
+
+		int counter = 0;
+
         for(;;)
         {
         	double precTick = ticks;
@@ -84,6 +91,7 @@ int main (int argc, char * const argv[]) {
 
             measurement(0) = mouse_info.x;
 			measurement(1) = mouse_info.y;
+
 			KF.transitionMatrix.at<float>(2) = dT;
 			KF.transitionMatrix.at<float>(7) = dT;
 			KF2.transitionMatrix.at<float>(2) = dT;
@@ -117,7 +125,6 @@ int main (int argc, char * const argv[]) {
 			}
 			secondkalmanv.push_back(statePt2);
 
-
             // plot points
 #define drawCross( center, color, d )                                 \
 line( img, Point( center.x - d, center.y - d ),                \
@@ -141,6 +148,30 @@ Point( center.x - d, center.y + d ), color, 2, CV_AA, 0 )
 			}
 			for (int i = 0; i < secondkalmanv.size()-1; i++) {
 				line(img, secondkalmanv[i], secondkalmanv[i+1], Scalar(0,0,255), 1);
+			}
+
+			if(secondkalmanv.size() > 1)
+			{
+				double dX = 5 * (secondkalmanv[secondkalmanv.size() - 1].x - secondkalmanv[secondkalmanv.size() - 2].x);
+				double dY = 5 * (secondkalmanv[secondkalmanv.size() - 1].y - secondkalmanv[secondkalmanv.size() - 2].y);
+
+				double main_radius = sqrt(pow(dX, 2) + pow(dY, 2));
+
+				Size s(main_radius, main_radius / 2);
+				double alphaRAD = acos(dX / main_radius);
+				double alphaDEG = alphaRAD / PI * 180;
+
+				if(dY < 0)
+				{
+					alphaDEG = 180-alphaDEG;
+				}
+
+				ellipse(img, statePt2, s, alphaDEG, 0, 360, Scalar(255, 255, 255), 1);
+
+				Point F1(statePt2.x + dX / C, statePt2.y + dY / C);
+				Point F2(statePt2.x - dX / C, statePt2.y - dY / C);
+
+				double distance = sqrt(pow(statePt.x - F1.x, 2) + pow(statePt.y - F1.y, 2)) + sqrt(pow(statePt.x - F2.x, 2) + pow(statePt.y - F2.y, 2));
 			}
 
 

@@ -13,6 +13,7 @@
 #define MAX_USERS 15
 #define DISTANCE_THRESHOLD 1
 #define KALMAN_TIMEOUT 5
+#define FOCUS_RATIO 1.1547005383792515291871035014902
 
 std::string genericUserCalibrationFileName;
 
@@ -59,6 +60,13 @@ cv::KalmanFilter kf2(stateSize, measSize, contrSize);
 
 cv::Mat state(stateSize, 1, CV_32F);
 cv::Mat meas(measSize, 1, CV_32F);
+
+cv::Point F1;
+cv::Point F2;
+
+cv::Point oldPosition;
+
+//--------------------------------------------
 
 double ticks = 0;
 double dT;
@@ -208,7 +216,9 @@ int main(int argc, char **argv)
 
 				if(calcUserTransforms(user, torso_local, torso_global, head_local, head_global))
 				{
-					double current = std::sqrt(std::pow(torso_global.getOrigin().getX() - state.at<float>(0), 2) + std::pow(torso_global.getOrigin().getY() - state.at<float>(1), 2));
+					double currentF1 = std::sqrt(std::pow(torso_global.getOrigin().getX() - F1.x, 2) + std::pow(torso_global.getOrigin().getY() - F1.y, 2));
+					double currentF2 = std::sqrt(std::pow(torso_global.getOrigin().getX() - F2.x, 2) + std::pow(torso_global.getOrigin().getY() - F2.y, 2));
+					double current = currentF1 + currentF2;
 
 					if(current < distances[user])
 					{
@@ -241,7 +251,7 @@ int main(int argc, char **argv)
 				}
 			}
 
-			if(min <= (DISTANCE_THRESHOLD / 2))
+			if(min <= DISTANCE_THRESHOLD)
 			{
 				skeleton_to_track = closer;
 				ros::param::set("skeleton_to_track", skeleton_to_track);
@@ -256,7 +266,7 @@ int main(int argc, char **argv)
 
 			if((now - lastDetected).sec >= KALMAN_TIMEOUT)
 			{
-				if(min <= DISTANCE_THRESHOLD)
+				if(min <= DISTANCE_THRESHOLD * 2)
 				{
 					skeleton_to_track = closer;
 					ros::param::set("skeleton_to_track", skeleton_to_track);
@@ -394,6 +404,18 @@ void kalmanPrediction()
 	kf2.transitionMatrix.at<float>(17) = dT;
 
 	state = kf2.predict();
+
+	double dX = oldPosition.x - state.at<float>(0);
+	double dY = oldPosition.y - state.at<float>(1);
+
+	oldPosition = cv::Point(state.at<float>(0), state.at<float>(1));
+
+	double delta = sqrt(pow(dX, 2) + pow(dY, 2));
+	dX = ((dX / delta) / FOCUS_RATIO) * DISTANCE_THRESHOLD;
+	dY = ((dY / delta) / FOCUS_RATIO) * DISTANCE_THRESHOLD;
+
+	F1 = cv::Point(state.at<float>(0) + dX, state.at<float>(1) + dY);
+	F2 = cv::Point(state.at<float>(0) - dX, state.at<float>(1) - dY);
 }
 
 void kalmanUpdate(tf::Transform transform)
@@ -417,7 +439,9 @@ void kalmanUpdate(tf::Transform transform)
 		kf2.statePre.at<float>(5) = 0;
 
 		kf1.predict();
-		kf2.predict();
+		state = kf2.predict();
+
+		oldPosition = cv::Point(state.at<float>(0), state.at<float>(1));
 	}
 	else
 	{
