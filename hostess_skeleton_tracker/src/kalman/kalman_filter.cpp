@@ -98,7 +98,7 @@ int main (int argc, char * const argv[]) {
 			KF2.transitionMatrix.at<float>(7) = dT;
 
 			Point measPt(measurement(0),measurement(1));
-			if(mousev.size() >= 90)
+			if(mousev.size() >= 800)
 			{
 				mousev.pop_front();
 			}
@@ -119,7 +119,7 @@ int main (int argc, char * const argv[]) {
 
 			Mat estimated2 = KF2.correct(measurement);
 			Point statePt2(estimated2.at<float>(0),estimated2.at<float>(1));
-			if(secondkalmanv.size() >= 90)
+			if(secondkalmanv.size() >= 800)
 			{
 				secondkalmanv.pop_front();
 			}
@@ -132,10 +132,10 @@ Point( center.x + d, center.y + d ), color, 2, CV_AA, 0); \
 line( img, Point( center.x + d, center.y - d ),                \
 Point( center.x - d, center.y + d ), color, 2, CV_AA, 0 )
 
-            img = Scalar::all(0);
-            drawCross( statePt2, Scalar(255, 255, 255), 5);
-            drawCross( statePt, Scalar(255,255,255), 5 );
-            drawCross( measPt, Scalar(255,255,255), 5 );
+            img = Scalar::all(255);
+            //drawCross( statePt2, Scalar(255, 255, 255), 5);
+            //drawCross( statePt, Scalar(255,255,255), 5 );
+            //drawCross( measPt, Scalar(255,255,255), 5 );
 //            drawCross( predictPt, Scalar(0,255,0), 3 );
 //			line( img, statePt, measPt, Scalar(0,0,255), 3, CV_AA, 0 );
 //			line( img, statePt, predictPt, Scalar(0,255,255), 3, CV_AA, 0 );
@@ -144,7 +144,7 @@ Point( center.x - d, center.y + d ), color, 2, CV_AA, 0 )
 				line(img, mousev[i], mousev[i+1], Scalar(255,0,0), 1);
 			}
 			for (int i = 0; i < kalmanv.size()-1; i++) {
-				line(img, kalmanv[i], kalmanv[i+1], Scalar(0,255,0), 1);
+				//line(img, kalmanv[i], kalmanv[i+1], Scalar(0,255,0), 1);
 			}
 			for (int i = 0; i < secondkalmanv.size()-1; i++) {
 				line(img, secondkalmanv[i], secondkalmanv[i+1], Scalar(0,0,255), 1);
@@ -166,7 +166,7 @@ Point( center.x - d, center.y + d ), color, 2, CV_AA, 0 )
 					alphaDEG = 180-alphaDEG;
 				}
 
-				ellipse(img, statePt2, s, alphaDEG, 0, 360, Scalar(255, 255, 255), 1);
+				//ellipse(img, statePt2, s, alphaDEG, 0, 360, Scalar(255, 255, 255), 1);
 
 				Point F1(statePt2.x + dX / C, statePt2.y + dY / C);
 				Point F2(statePt2.x - dX / C, statePt2.y - dY / C);
