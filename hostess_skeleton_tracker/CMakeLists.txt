@@ -6,7 +6,9 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 find_package(orocos_kdl REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
+	cv_bridge
 	geometry_msgs
+	image_transport
 	std_msgs
 	roscpp
 	roslib
@@ -65,6 +67,7 @@ target_link_libraries(multiple_skeleton_tracker
 	${catkin_LIBRARIES}
 	${OpenNI_LIBRARIES}
 	${orocos_kdl_LIBRARIES}
+	${OpenCV_LIBS}
 )
 
 add_executable(hostess_skeleton_kalman src/hostess_skeleton_kalman.cpp)

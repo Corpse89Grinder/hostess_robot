@@ -8,19 +8,16 @@
 #include <XnCodecIDs.h>
 #include <XnCppWrapper.h>
 #include <map>
-#include <cv_bridge/cv_bridge.h>
-#include <image_transport/image_transport.h>
 
 #define MAX_USERS 6
 
 std::string genericUserCalibrationFileName;
 std::vector<std::string> joint_names{"head", "neck", "torso", "waist", "left_collar", "left_shoulder", "left_elbow", "left_wrist", "left_hand", "left_fingertip", "right_collar", "right_shoulder", "right_elbow", "right_wrist", "right_hand", "right_fingertip", "left_hip", "left_knee", "left_ankle", "left_foot", "right_hip", "right_knee", "right_ankle", "right_foot"};
 
-xn::Context			g_Context;
-xn::DepthGenerator	g_DepthGenerator;
-xn::UserGenerator	g_UserGenerator;
-xn::SceneAnalyzer	g_SceneAnalyzer;
-xn::ImageGenerator	g_ImageGenerator;
+xn::Context        g_Context;
+xn::DepthGenerator g_DepthGenerator;
+xn::UserGenerator  g_UserGenerator;
+xn::HandsGenerator g_HandsGenerator;
 
 void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator&, XnUserID, void*);
 void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator&, XnUserID, void*);
@@ -30,18 +27,13 @@ void XN_CALLBACK_TYPE User_BackIntoScene(xn::UserGenerator&, XnUserID, void*);
 XnUInt32 calibrationData;
 
 void publishUserTransforms(XnUserID const&, std::string const&);
-void publishTransforms(const std::string&, image_transport::Publisher&);
+void publishTransforms(const std::string&);
 bool checkCenterOfMass(XnUserID const&);
-void drawUserPixels(XnUserID const&, image_transport::Publisher&);
 
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "multiple_skeleton_tracker");
     ros::NodeHandle nh;
-
-    image_transport::ImageTransport it(nh);
-
-    image_transport::Publisher pub = it.advertise("userblobs", 1);
 
     std::string configFilename = ros::package::getPath("hostess_skeleton_tracker") + "/init/openni_tracker.xml";
     genericUserCalibrationFileName = ros::package::getPath("hostess_skeleton_tracker") + "/init/GenericUserCalibration.bin";
@@ -89,10 +81,22 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
-	g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_ALL);
+	g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_HEAD_HANDS);
 
-	g_SceneAnalyzer.Create(g_Context);
-	g_ImageGenerator.Create(g_Context);
+	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_HANDS, g_HandsGenerator);
+
+	if (nRetVal != XN_STATUS_OK)
+	{
+		nRetVal = g_HandsGenerator.Create(g_Context);
+
+		if (nRetVal != XN_STATUS_OK)
+		{
+			ROS_ERROR("NITE is likely missing: Please install NITE >= 1.5.2.21. Check the readme for download information. Error Info: Hands generator failed: %s", xnGetStatusString(nRetVal));
+			return nRetVal;
+		}
+	}
+
+	g_HandsGenerator.IsCapabilitySupported(XN_CAp)
 
     XnCallbackHandle hUserCallbacks;
     g_UserGenerator.RegisterUserCallbacks(User_NewUser, User_LostUser, NULL, hUserCallbacks);
@@ -112,7 +116,7 @@ int main(int argc, char **argv)
     while(nh.ok())
 	{
 		g_Context.WaitAndUpdateAll();
-		publishTransforms(frame_id, pub);
+		publishTransforms(frame_id);
 
 		ros::Rate(30).sleep();
 	}
@@ -293,7 +297,7 @@ void publishUserTransforms(XnUserID const& user, std::string const& frame_id)
     }
 }
 
-void publishTransforms(const std::string& frame_id, image_transport::Publisher& pub)
+void publishTransforms(const std::string& frame_id)
 {
     ros::Time now = ros::Time::now();
 
@@ -309,56 +313,8 @@ void publishTransforms(const std::string& frame_id, image_transport::Publisher& 
         if(checkCenterOfMass(user))
         {
         	publishUserTransforms(user, frame_id);
-        	drawUserPixels(user, pub);
         }
     }
-}
-
-void drawUserPixels(XnUserID const& user, image_transport::Publisher& pub)
-{
-	xn::SceneMetaData smd;
-	xn::DepthMetaData dmd;
-	xn::ImageMetaData imd;
-
-	g_DepthGenerator.GetMetaData(dmd);
-	g_SceneAnalyzer.GetMetaData(smd);
-	g_ImageGenerator.GetMetaData(imd);
-
-	const XnLabel* pLabels = smd.Data();
-	const XnRGB24Pixel* colorImage = imd.RGB24Data();
-
-	//http://thesaadismail.github.io/2013/04/saving-rgb-and-depth-data-from-kinect.html
-
-	cv::Mat maskImage(dmd.FullYRes(), dmd.FullXRes(), CV_8UC1);
-	cv::Mat image(imd.FullYRes(), imd.FullXRes(), CV_8UC3);
-
-	for(XnUInt y = 0; y < imd.YRes(); ++y)
-	{
-		for(XnUInt x = 0; x < imd.XRes(); ++x, ++colorImage)
-		{
-			cv::Vec3b intensity(colorImage->nBlue, colorImage->nGreen, colorImage->nRed);
-			image.at<cv::Vec3b>(y, x)[0] = intensity[0];
-			image.at<cv::Vec3b>(y, x)[1] = intensity[1];
-			image.at<cv::Vec3b>(y, x)[2] = intensity[2];
-		}
-	}
-
-	for(XnUInt y = 0; y < dmd.YRes(); ++y)
-	{
-		for(XnUInt x = 0; x < dmd.XRes(); ++x, ++pLabels, ++colorImage)
-		{
-			cv::Vec3b intensity(colorImage->nBlue, colorImage->nGreen, colorImage->nRed);
-
-			//ROS_INFO("%d %d", colorImage->nBlue, intensity[0]);
-
-			maskImage.at<uchar>(y, x) = (*pLabels) ? 255 : 0;
-			//image.at<cv::Vec3b>(y, x) = (*pLabels) ? intensity : cv::Vec3b(0, 0, 0);//(*pLabels) ? intensity : 0;
-		}
-	}
-
-	sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", image).toImageMsg();
-
-	pub.publish(msg);
 }
 
 bool checkCenterOfMass(XnUserID const& user)
