@@ -30,9 +30,10 @@ void XN_CALLBACK_TYPE User_BackIntoScene(xn::UserGenerator&, XnUserID, void*);
 XnUInt32 calibrationData;
 
 void publishUserTransforms(XnUserID const&, std::string const&);
-void publishTransforms(const std::string&, image_transport::Publisher&);
+void publishTransforms(const std::string&);
 bool checkCenterOfMass(XnUserID const&);
-void drawUserPixels(XnUserID const&, image_transport::Publisher&);
+void drawUsersPixels(image_transport::ImageTransport&);
+void drawUserPixels(XnUserID const&, image_transport::ImageTransport&);
 
 int main(int argc, char **argv)
 {
@@ -40,8 +41,6 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
 
     image_transport::ImageTransport it(nh);
-
-    image_transport::Publisher pub = it.advertise("userblobs", 1);
 
     std::string configFilename = ros::package::getPath("hostess_skeleton_tracker") + "/init/openni_tracker.xml";
     genericUserCalibrationFileName = ros::package::getPath("hostess_skeleton_tracker") + "/init/GenericUserCalibration.bin";
@@ -63,6 +62,8 @@ int main(int argc, char **argv)
     	}
     }
 
+    std::string frame_id;
+
     nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_DEPTH, g_DepthGenerator);
 
     if(nRetVal != XN_STATUS_OK)
@@ -70,9 +71,36 @@ int main(int argc, char **argv)
 		ROS_ERROR("Find depth generator failed: %s", xnGetStatusString(nRetVal));
 	}
 
+    frame_id("camera_depth_frame");
+
+    nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_IMAGE, g_ImageGenerator);
+
+	if(nRetVal != XN_STATUS_OK)
+	{
+		ROS_ERROR("Find image generator failed: %s", xnGetStatusString(nRetVal));
+	}
+	else
+	{
+		if(g_DepthGenerator.IsCapabilitySupported(XN_CAPABILITY_ALTERNATIVE_VIEW_POINT))
+		{
+			g_DepthGenerator.GetAlternativeViewPointCap().SetViewPoint(g_ImageGenerator);
+			frame_id = "camera_rgb_frame";
+		}
+	}
+
+	nh.setParam("camera_frame_id", frame_id);
+
+	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_SCENE, g_SceneAnalyzer);
+
+	if(nRetVal != XN_STATUS_OK)
+	{
+		ROS_ERROR("Find scene analyzer failed: %s", xnGetStatusString(nRetVal));
+		//g_SceneAnalyzer.Create(g_Context);
+	}
+
 	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_USER, g_UserGenerator);
 
-	if (nRetVal != XN_STATUS_OK)
+	if(nRetVal != XN_STATUS_OK)
 	{
 		nRetVal = g_UserGenerator.Create(g_Context);
 
@@ -83,16 +111,13 @@ int main(int argc, char **argv)
 	    }
 	}
 
-	if (!g_UserGenerator.IsCapabilitySupported(XN_CAPABILITY_SKELETON))
+	if(!g_UserGenerator.IsCapabilitySupported(XN_CAPABILITY_SKELETON))
 	{
 		ROS_INFO("Supplied user generator doesn't support skeleton");
 		return EXIT_FAILURE;
 	}
 
 	g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_ALL);
-
-	g_SceneAnalyzer.Create(g_Context);
-	g_ImageGenerator.Create(g_Context);
 
     XnCallbackHandle hUserCallbacks;
     g_UserGenerator.RegisterUserCallbacks(User_NewUser, User_LostUser, NULL, hUserCallbacks);
@@ -106,14 +131,11 @@ int main(int argc, char **argv)
 		ROS_ERROR("StartGenerating failed: %s", xnGetStatusString(nRetVal));
 	}
 
-    std::string frame_id("camera_depth_frame");
-    nh.getParam("camera_frame_id", frame_id);
-
     while(nh.ok())
 	{
 		g_Context.WaitAndUpdateAll();
-		publishTransforms(frame_id, pub);
-
+		publishTransforms(frame_id);
+		drawUsersPixels(it);
 		ros::Rate(30).sleep();
 	}
 
@@ -309,13 +331,38 @@ void publishTransforms(const std::string& frame_id, image_transport::Publisher& 
         if(checkCenterOfMass(user))
         {
         	publishUserTransforms(user, frame_id);
-        	drawUserPixels(user, pub);
         }
     }
 }
 
-void drawUserPixels(XnUserID const& user, image_transport::Publisher& pub)
+void drawUsersPixels(image_transport::ImageTransport& it)
 {
+	ros::Time now = ros::Time::now();
+
+	XnUInt16 users_count = MAX_USERS;
+	XnUserID users[MAX_USERS];
+
+	g_UserGenerator.GetUsers(users, users_count);
+
+	for(int i = 0; i < users_count; ++i)
+	{
+		XnUserID user = users[i];
+
+		if(checkCenterOfMass(user))
+		{
+			drawUserPixels(user, it);
+		}
+	}
+}
+
+void drawUserPixels(XnUserID const& user, image_transport::ImageTransport& it)
+{
+	std::ostringstream oss;
+
+	oss << "users_blobs/user_" << user;
+
+	static image_transport::Publisher pub = it.advertise(oss.str(), 1);
+
 	xn::SceneMetaData smd;
 	xn::DepthMetaData dmd;
 	xn::ImageMetaData imd;
@@ -325,38 +372,47 @@ void drawUserPixels(XnUserID const& user, image_transport::Publisher& pub)
 	g_ImageGenerator.GetMetaData(imd);
 
 	const XnLabel* pLabels = smd.Data();
-	const XnRGB24Pixel* colorImage = imd.RGB24Data();
+	const XnRGB24Pixel* pImageRow = imd.RGB24Data();
+	const XnRGB24Pixel* pPixel;
+
+	cv::Mat colorImage;
+	cv::Mat colorArr[3];
+
+	colorArr[0] = cv::Mat(imd.YRes(), imd.XRes(), CV_8U);
+	colorArr[1] = cv::Mat(imd.YRes(), imd.XRes(), CV_8U);
+	colorArr[2] = cv::Mat(imd.YRes(), imd.XRes(), CV_8U);
+
+	for(int y = 0; y < imd.YRes(); y++, pImageRow += imd.XRes())
+	{
+		pPixel = pImageRow;
+
+		uchar* Bptr = colorArr[0].ptr<uchar>(y);
+		uchar* Gptr = colorArr[1].ptr<uchar>(y);
+		uchar* Rptr = colorArr[2].ptr<uchar>(y);
+
+		for(int x = 0; x < imd.XRes(); ++x, ++pPixel)
+		{
+			Bptr[x] = pPixel->nBlue;
+			Gptr[x] = pPixel->nGreen;
+			Rptr[x] = pPixel->nRed;
+		}
+	}
+
+	cv::merge(colorArr, 3, colorImage);
 
 	//http://thesaadismail.github.io/2013/04/saving-rgb-and-depth-data-from-kinect.html
 
 	cv::Mat maskImage(dmd.FullYRes(), dmd.FullXRes(), CV_8UC1);
-	cv::Mat image(imd.FullYRes(), imd.FullXRes(), CV_8UC3);
-
-	for(XnUInt y = 0; y < imd.YRes(); ++y)
-	{
-		for(XnUInt x = 0; x < imd.XRes(); ++x, ++colorImage)
-		{
-			cv::Vec3b intensity(colorImage->nBlue, colorImage->nGreen, colorImage->nRed);
-			image.at<cv::Vec3b>(y, x)[0] = intensity[0];
-			image.at<cv::Vec3b>(y, x)[1] = intensity[1];
-			image.at<cv::Vec3b>(y, x)[2] = intensity[2];
-		}
-	}
 
 	for(XnUInt y = 0; y < dmd.YRes(); ++y)
 	{
-		for(XnUInt x = 0; x < dmd.XRes(); ++x, ++pLabels, ++colorImage)
+		for(XnUInt x = 0; x < dmd.XRes(); ++x, ++pLabels)
 		{
-			cv::Vec3b intensity(colorImage->nBlue, colorImage->nGreen, colorImage->nRed);
-
-			//ROS_INFO("%d %d", colorImage->nBlue, intensity[0]);
-
 			maskImage.at<uchar>(y, x) = (*pLabels) ? 255 : 0;
-			//image.at<cv::Vec3b>(y, x) = (*pLabels) ? intensity : cv::Vec3b(0, 0, 0);//(*pLabels) ? intensity : 0;
 		}
 	}
 
-	sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", image).toImageMsg();
+	sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", colorImage).toImageMsg();
 
 	pub.publish(msg);
 }

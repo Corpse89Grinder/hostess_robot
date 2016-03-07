@@ -33,11 +33,16 @@ int main(int argc, char** argv)
 
 	ros::NodeHandle nh;
 	std::string user_to_track;
-
-	std::string frame_id("camera_depth_frame");
-	nh.getParam("camera_frame_id", frame_id);
+	std::string frame_id;
 
 	PanController pan_controller(nh);
+
+	ROS_INFO("Waiting for reference frame.");
+
+	while(!ros::param::get("camera_frame_id", frame_id) && nh.ok())
+	{
+		ros::Duration(1).sleep();
+	}
 
 	ROS_INFO("Waiting for user identity.");
 
