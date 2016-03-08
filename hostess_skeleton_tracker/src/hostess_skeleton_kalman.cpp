@@ -3,11 +3,13 @@
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
 #include <kdl/frames.hpp>
-#include <string>
+#include <sstream>
 #include <XnOpenNI.h>
 #include <XnCodecIDs.h>
 #include <XnCppWrapper.h>
 #include <map>
+#include <image_transport/image_transport.h>
+#include <cv_bridge/cv_bridge.h>
 #include <opencv2/video/tracking.hpp>
 
 #define MAX_USERS 15
@@ -17,15 +19,19 @@
 
 std::string genericUserCalibrationFileName;
 
-std::string frame_id("camera_depth_frame");
+std::string frame_id;
 std::string parent_frame_id("map");
 int skeleton_to_track = 0;
 
 xn::Context        g_Context;
 xn::DepthGenerator g_DepthGenerator;
 xn::UserGenerator  g_UserGenerator;
+xn::SceneAnalyzer	g_SceneAnalyzer;
+xn::ImageGenerator	g_ImageGenerator;
 
 std::map<int, double> distances;
+
+cv::Mat RGBImage;
 
 void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator&, XnUserID, void*);
 void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator&, XnUserID, void*);
@@ -43,9 +49,15 @@ bool calcUserTransforms(XnUserID const&, tf::Transform&, tf::Transform&, tf::Tra
 void publishUserTransforms(int, tf::Transform, tf::Transform, tf::Transform, tf::Transform, ros::Time);
 void publishAllTransforms();
 
+void updateRGBImage(const sensor_msgs::ImageConstPtr&);
+void calcUserHistogram(int, cv::Mat&, bool);
+double histogramComparison(cv::Mat);
+
 bool checkCenterOfMass(XnUserID const&);
 
 bool updateParent();
+
+cv::Mat userHistogram;
 
 tf::StampedTransform parentTransform;
 
@@ -81,6 +93,9 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "hostess_skeleton_tracker");
     ros::NodeHandle nh;
 
+    image_transport::ImageTransport it(nh);
+	image_transport::Subscriber sub = it.subscribe("camera/rgb/image_raw", 1, updateRGBImage);
+
     std::string configFilename = ros::package::getPath("hostess_skeleton_tracker") + "/init/openni_tracker.xml";
     genericUserCalibrationFileName = ros::package::getPath("hostess_skeleton_tracker") + "/init/GenericUserCalibration.bin";
 
@@ -106,6 +121,40 @@ int main(int argc, char **argv)
     if(nRetVal != XN_STATUS_OK)
 	{
 		ROS_ERROR("Find depth generator failed: %s", xnGetStatusString(nRetVal));
+	}
+
+    frame_id = "camera_depth_frame";
+
+    nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_IMAGE, g_ImageGenerator);
+
+	if(nRetVal != XN_STATUS_OK)
+	{
+		nRetVal = g_ImageGenerator.Create(g_Context);
+	}
+
+	if(nRetVal != XN_STATUS_OK)
+	{
+		ROS_ERROR("Find image generator failed: %s", xnGetStatusString(nRetVal));
+	}
+
+	if(g_DepthGenerator.IsCapabilitySupported(XN_CAPABILITY_ALTERNATIVE_VIEW_POINT))
+	{
+		g_DepthGenerator.GetAlternativeViewPointCap().SetViewPoint(g_ImageGenerator);
+		frame_id = "camera_rgb_frame";
+	}
+
+	nh.setParam("camera_frame_id", frame_id);
+
+	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_SCENE, g_SceneAnalyzer);
+
+	if(nRetVal != XN_STATUS_OK)
+	{
+		nRetVal = g_SceneAnalyzer.Create(g_Context);
+	}
+
+	if(nRetVal != XN_STATUS_OK)
+	{
+		ROS_ERROR("Find scene analyzer failed: %s", xnGetStatusString(nRetVal));
 	}
 
 	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_USER, g_UserGenerator);
@@ -179,6 +228,8 @@ int main(int argc, char **argv)
 			{
 				publishUserTransforms(skeleton_to_track, torso_local, torso_global, head_local, head_global, now);
 
+				calcUserHistogram(skeleton_to_track, userHistogram, true);
+
 				kalmanUpdate(torso_global);
 
 				lastDetected = now;
@@ -207,6 +258,7 @@ int main(int argc, char **argv)
 			g_UserGenerator.GetUsers(users, users_count);
 
 			int closer = 0;
+			double maxCorrelation;
 
 			for(int i = 0; i < users_count; ++i)
 			{
@@ -223,6 +275,23 @@ int main(int argc, char **argv)
 					if(current < distances[user])
 					{
 						distances[user] = current;
+
+						if(distances[user] <= 2 * DISTANCE_THRESHOLD)
+						{
+							//Sono dentro l'ellisse, controllo la somiglianza degli istogrammi
+							cv::Mat histogram;
+
+							calcUserHistogram(user, histogram, false);
+
+							double currentCorrelation = histogramComparison(histogram);
+
+							ROS_INFO("Current correlation: %f", currentCorrelation);
+
+							if(currentCorrelation > maxCorrelation)
+							{
+								maxCorrelation = currentCorrelation;
+							}
+						}
 					}
 				}
 			}
@@ -251,7 +320,7 @@ int main(int argc, char **argv)
 				}
 			}
 
-			if(min <= DISTANCE_THRESHOLD)
+			/*if(min <= DISTANCE_THRESHOLD)
 			{
 				skeleton_to_track = closer;
 				ros::param::set("skeleton_to_track", skeleton_to_track);
@@ -264,7 +333,7 @@ int main(int argc, char **argv)
 				ROS_INFO("Re-associating user to skeleton %d, distance %f.", skeleton_to_track, min);
 				
 				continue;
-			}
+			}*/
 
 			if((now - lastDetected).sec >= KALMAN_TIMEOUT)
 			{
@@ -469,9 +538,7 @@ void kalmanUpdate(tf::Transform transform)
 	}
 }
 
-
 //------------------------------------------------------------------------------
-
 
 void publishUserTransforms(int user, tf::Transform torso_local, tf::Transform torso_global, tf::Transform head_local, tf::Transform head_global, ros::Time now)
 {
@@ -606,4 +673,69 @@ bool updateParent()
 	{
 		return false;
 	}
+}
+
+//-----------------------------------------------------------------------------------------
+
+void updateRGBImage(const sensor_msgs::ImageConstPtr& msg)
+{
+	cv::Mat image;
+
+	try
+	{
+		image = cv_bridge::toCvShare(msg, "bgr8")->image;
+
+		if(image.empty())
+		{
+			return;
+		}
+
+		RGBImage = image.clone();
+	}
+	catch(cv_bridge::Exception& e)
+	{
+		//Conversion failed
+		ROS_ERROR("Could not convert from '%s' to 'bgr8'.", msg->encoding.c_str());
+
+		return;
+	}
+}
+
+void calcUserHistogram(int user, cv::Mat& histogram, bool accumulate)
+{
+	xn::SceneMetaData smd;
+	xn::DepthMetaData dmd;
+
+	g_DepthGenerator.GetMetaData(dmd);
+	g_SceneAnalyzer.GetMetaData(smd);
+
+	const XnLabel* pLabels = smd.Data();
+
+	cv::Mat maskImage = cv::Mat(dmd.FullYRes(), dmd.FullXRes(), CV_8UC1);
+	cv::Mat maskedImage;
+
+	for(XnUInt y = 0; y < dmd.YRes(); ++y)
+	{
+		for(XnUInt x = 0; x < dmd.XRes(); ++x, ++pLabels)
+		{
+			maskImage.at<uchar>(y, x) = (*pLabels == user) ? 255 : 0;
+		}
+	}
+
+	int histSize = 256;
+
+	float range[] = {0, 256};
+	const float* histRange = {range};
+
+	int channels[] = {0, 1, 2};
+
+	cv::calcHist(&RGBImage, 1, channels, maskImage, histogram, 2, &histSize, &histRange, true, accumulate);
+	cv::normalize(histogram, histogram, 0, 255, cv::NORM_MINMAX, -1, cv::Mat());
+}
+
+double histogramComparison(cv::Mat histogram)
+{
+	return cv::compareHist(userHistogram, histogram, CV_COMP_CORREL);
+
+	ROS_INFO("prova");
 }

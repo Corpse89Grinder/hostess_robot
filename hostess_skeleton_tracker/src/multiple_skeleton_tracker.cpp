@@ -7,6 +7,7 @@
 #include <XnOpenNI.h>
 #include <XnCodecIDs.h>
 #include <XnCppWrapper.h>
+#include <vector>
 #include <map>
 #include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.h>
@@ -32,8 +33,13 @@ XnUInt32 calibrationData;
 void publishUserTransforms(XnUserID const&, std::string const&);
 void publishTransforms(const std::string&);
 bool checkCenterOfMass(XnUserID const&);
-void drawUsersPixels(image_transport::ImageTransport&);
-void drawUserPixels(XnUserID const&, image_transport::ImageTransport&);
+void drawUsersPixels();
+void drawUserPixels(XnUserID const&, cv::Mat&);
+void updateRGBImage(const sensor_msgs::ImageConstPtr&);
+
+std::vector<image_transport::Publisher> pubs(MAX_USERS);
+
+cv::Mat RGBImage;
 
 int main(int argc, char **argv)
 {
@@ -41,6 +47,7 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
 
     image_transport::ImageTransport it(nh);
+    image_transport::Subscriber sub = it.subscribe("camera/rgb/image_raw", 1, updateRGBImage);
 
     std::string configFilename = ros::package::getPath("hostess_skeleton_tracker") + "/init/openni_tracker.xml";
     genericUserCalibrationFileName = ros::package::getPath("hostess_skeleton_tracker") + "/init/GenericUserCalibration.bin";
@@ -71,31 +78,18 @@ int main(int argc, char **argv)
 		ROS_ERROR("Find depth generator failed: %s", xnGetStatusString(nRetVal));
 	}
 
-    frame_id("camera_depth_frame");
+    frame_id = "camera_depth_frame";
 
     nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_IMAGE, g_ImageGenerator);
 
 	if(nRetVal != XN_STATUS_OK)
 	{
-		ROS_ERROR("Find image generator failed: %s", xnGetStatusString(nRetVal));
+		nRetVal = g_ImageGenerator.Create(g_Context);
 	}
-	else
-	{
-		if(g_DepthGenerator.IsCapabilitySupported(XN_CAPABILITY_ALTERNATIVE_VIEW_POINT))
-		{
-			g_DepthGenerator.GetAlternativeViewPointCap().SetViewPoint(g_ImageGenerator);
-			frame_id = "camera_rgb_frame";
-		}
-	}
-
-	nh.setParam("camera_frame_id", frame_id);
-
-	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_SCENE, g_SceneAnalyzer);
 
 	if(nRetVal != XN_STATUS_OK)
 	{
-		ROS_ERROR("Find scene analyzer failed: %s", xnGetStatusString(nRetVal));
-		//g_SceneAnalyzer.Create(g_Context);
+		ROS_ERROR("Find image generator failed: %s", xnGetStatusString(nRetVal));
 	}
 
 	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_USER, g_UserGenerator);
@@ -104,11 +98,11 @@ int main(int argc, char **argv)
 	{
 		nRetVal = g_UserGenerator.Create(g_Context);
 
-	    if (nRetVal != XN_STATUS_OK)
-	    {
-		    ROS_ERROR("NITE is likely missing: Please install NITE >= 1.5.2.21. Check the readme for download information. Error Info: User generator failed: %s", xnGetStatusString(nRetVal));
-            return nRetVal;
-	    }
+		if (nRetVal != XN_STATUS_OK)
+		{
+			ROS_ERROR("NITE is likely missing: Please install NITE >= 1.5.2.21. Check the readme for download information. Error Info: User generator failed: %s", xnGetStatusString(nRetVal));
+			return nRetVal;
+		}
 	}
 
 	if(!g_UserGenerator.IsCapabilitySupported(XN_CAPABILITY_SKELETON))
@@ -119,10 +113,30 @@ int main(int argc, char **argv)
 
 	g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_ALL);
 
-    XnCallbackHandle hUserCallbacks;
-    g_UserGenerator.RegisterUserCallbacks(User_NewUser, User_LostUser, NULL, hUserCallbacks);
-    g_UserGenerator.RegisterToUserExit(User_OutOfScene, NULL, hUserCallbacks);
-    g_UserGenerator.RegisterToUserReEnter(User_BackIntoScene, NULL, hUserCallbacks);
+	XnCallbackHandle hUserCallbacks;
+	g_UserGenerator.RegisterUserCallbacks(User_NewUser, User_LostUser, NULL, hUserCallbacks);
+	g_UserGenerator.RegisterToUserExit(User_OutOfScene, NULL, hUserCallbacks);
+	g_UserGenerator.RegisterToUserReEnter(User_BackIntoScene, NULL, hUserCallbacks);
+
+	if(g_DepthGenerator.IsCapabilitySupported(XN_CAPABILITY_ALTERNATIVE_VIEW_POINT))
+	{
+		g_DepthGenerator.GetAlternativeViewPointCap().SetViewPoint(g_ImageGenerator);
+		frame_id = "camera_rgb_frame";
+	}
+
+	nh.setParam("camera_frame_id", frame_id);
+
+	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_SCENE, g_SceneAnalyzer);
+
+	if(nRetVal != XN_STATUS_OK)
+	{
+		nRetVal = g_SceneAnalyzer.Create(g_Context);
+	}
+
+	if(nRetVal != XN_STATUS_OK)
+	{
+		ROS_ERROR("Find scene analyzer failed: %s", xnGetStatusString(nRetVal));
+	}
 
 	nRetVal = g_Context.StartGeneratingAll();
 
@@ -131,11 +145,21 @@ int main(int argc, char **argv)
 		ROS_ERROR("StartGenerating failed: %s", xnGetStatusString(nRetVal));
 	}
 
+	for(int i = 0; i < pubs.size(); i++)
+	{
+		std::ostringstream oss;
+
+		oss << "users_blobs/user_" << i + 1;
+
+		pubs[i] = it.advertise(oss.str(), 1);
+	}
+
     while(nh.ok())
 	{
+    	ros::spinOnce();
 		g_Context.WaitAndUpdateAll();
 		publishTransforms(frame_id);
-		drawUsersPixels(it);
+		drawUsersPixels();
 		ros::Rate(30).sleep();
 	}
 
@@ -315,7 +339,7 @@ void publishUserTransforms(XnUserID const& user, std::string const& frame_id)
     }
 }
 
-void publishTransforms(const std::string& frame_id, image_transport::Publisher& pub)
+void publishTransforms(const std::string& frame_id)
 {
     ros::Time now = ros::Time::now();
 
@@ -335,10 +359,32 @@ void publishTransforms(const std::string& frame_id, image_transport::Publisher& 
     }
 }
 
-void drawUsersPixels(image_transport::ImageTransport& it)
+void updateRGBImage(const sensor_msgs::ImageConstPtr& msg)
 {
-	ros::Time now = ros::Time::now();
+	cv::Mat image;
 
+	try
+	{
+		image = cv_bridge::toCvShare(msg, "bgr8")->image;
+
+		if(image.empty())
+		{
+			return;
+		}
+
+		RGBImage = image.clone();
+	}
+	catch(cv_bridge::Exception& e)
+	{
+		//Conversion failed
+		ROS_ERROR("Could not convert from '%s' to 'bgr8'.", msg->encoding.c_str());
+
+		return;
+	}
+}
+
+void drawUsersPixels()
+{
 	XnUInt16 users_count = MAX_USERS;
 	XnUserID users[MAX_USERS];
 
@@ -350,71 +396,38 @@ void drawUsersPixels(image_transport::ImageTransport& it)
 
 		if(checkCenterOfMass(user))
 		{
-			drawUserPixels(user, it);
+			cv::Mat maskedImage;
+
+			drawUserPixels(user, maskedImage);
+
+			sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", maskedImage).toImageMsg();
+
+			pubs[user - 1].publish(msg);
 		}
 	}
 }
 
-void drawUserPixels(XnUserID const& user, image_transport::ImageTransport& it)
+void drawUserPixels(XnUserID const& user, cv::Mat& maskedImage)
 {
-	std::ostringstream oss;
-
-	oss << "users_blobs/user_" << user;
-
-	static image_transport::Publisher pub = it.advertise(oss.str(), 1);
-
 	xn::SceneMetaData smd;
 	xn::DepthMetaData dmd;
-	xn::ImageMetaData imd;
 
 	g_DepthGenerator.GetMetaData(dmd);
 	g_SceneAnalyzer.GetMetaData(smd);
-	g_ImageGenerator.GetMetaData(imd);
 
 	const XnLabel* pLabels = smd.Data();
-	const XnRGB24Pixel* pImageRow = imd.RGB24Data();
-	const XnRGB24Pixel* pPixel;
 
-	cv::Mat colorImage;
-	cv::Mat colorArr[3];
-
-	colorArr[0] = cv::Mat(imd.YRes(), imd.XRes(), CV_8U);
-	colorArr[1] = cv::Mat(imd.YRes(), imd.XRes(), CV_8U);
-	colorArr[2] = cv::Mat(imd.YRes(), imd.XRes(), CV_8U);
-
-	for(int y = 0; y < imd.YRes(); y++, pImageRow += imd.XRes())
-	{
-		pPixel = pImageRow;
-
-		uchar* Bptr = colorArr[0].ptr<uchar>(y);
-		uchar* Gptr = colorArr[1].ptr<uchar>(y);
-		uchar* Rptr = colorArr[2].ptr<uchar>(y);
-
-		for(int x = 0; x < imd.XRes(); ++x, ++pPixel)
-		{
-			Bptr[x] = pPixel->nBlue;
-			Gptr[x] = pPixel->nGreen;
-			Rptr[x] = pPixel->nRed;
-		}
-	}
-
-	cv::merge(colorArr, 3, colorImage);
-
-	//http://thesaadismail.github.io/2013/04/saving-rgb-and-depth-data-from-kinect.html
-
-	cv::Mat maskImage(dmd.FullYRes(), dmd.FullXRes(), CV_8UC1);
+	cv::Mat maskImage = cv::Mat(dmd.FullYRes(), dmd.FullXRes(), CV_8UC1);
 
 	for(XnUInt y = 0; y < dmd.YRes(); ++y)
 	{
 		for(XnUInt x = 0; x < dmd.XRes(); ++x, ++pLabels)
 		{
-			maskImage.at<uchar>(y, x) = (*pLabels) ? 255 : 0;
+			maskImage.at<uchar>(y, x) = (*pLabels == user) ? 255 : 0;
 		}
 	}
 
-	sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", colorImage).toImageMsg();
-
-	pub.publish(msg);
+	RGBImage.copyTo(maskedImage, maskImage);
 }
 
 bool checkCenterOfMass(XnUserID const& user)
