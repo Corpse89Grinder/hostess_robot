@@ -26,6 +26,9 @@ int main(int argc, char** argv)
 	std::string frame_id("camera_depth_frame");
 	nh.getParam("camera_frame_id", frame_id);
 
+	int skeleton_to_track = 0;
+	ros::param::set("skeleton_to_track", skeleton_to_track);
+
 	ROS_INFO("Waiting for user identity.");
 
     while(!ros::param::get("user_to_track", user_to_track) && nh.ok())
@@ -34,8 +37,6 @@ int main(int argc, char** argv)
     }
 
     tf::TransformListener listener;
-
-    int skeleton_to_track = 0;
 
     ros::Publisher pub = nh.advertise<geometry_msgs::Twist>("/kobra/cmd_vel", 1);
 

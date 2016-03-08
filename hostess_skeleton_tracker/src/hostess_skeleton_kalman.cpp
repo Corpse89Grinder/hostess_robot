@@ -228,7 +228,7 @@ int main(int argc, char **argv)
 			{
 				publishUserTransforms(skeleton_to_track, torso_local, torso_global, head_local, head_global, now);
 
-				calcUserHistogram(skeleton_to_track, userHistogram, true);
+				//calcUserHistogram(skeleton_to_track, userHistogram, true);
 
 				kalmanUpdate(torso_global);
 
@@ -552,7 +552,7 @@ void publishUserTransforms(int user, tf::Transform torso_local, tf::Transform to
 	oss.str("");
 	oss.clear();
 	oss << "global_torso_" << user;
-	broadcaster.sendTransform(tf::StampedTransform(torso_global, now, parent_frame_id, oss.str()));
+	//broadcaster.sendTransform(tf::StampedTransform(torso_global, now, parent_frame_id, oss.str()));
 
 	oss.str("");
 	oss.clear();
@@ -562,7 +562,7 @@ void publishUserTransforms(int user, tf::Transform torso_local, tf::Transform to
 	oss.str("");
 	oss.clear();
 	oss << "global_head_" << user;
-	broadcaster.sendTransform(tf::StampedTransform(head_global, now, parent_frame_id, oss.str()));
+	//broadcaster.sendTransform(tf::StampedTransform(head_global, now, parent_frame_id, oss.str()));
 }
 
 void publishAllTransforms()
@@ -736,6 +736,4 @@ void calcUserHistogram(int user, cv::Mat& histogram, bool accumulate)
 double histogramComparison(cv::Mat histogram)
 {
 	return cv::compareHist(userHistogram, histogram, CV_COMP_CORREL);
-
-	ROS_INFO("prova");
 }
