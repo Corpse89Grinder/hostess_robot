@@ -13,7 +13,7 @@
 #include <opencv2/video/tracking.hpp>
 
 #define MAX_USERS 15
-#define DISTANCE_THRESHOLD 1
+#define DISTANCE_THRESHOLD 10
 #define KALMAN_TIMEOUT 5
 #define FOCUS_RATIO 1.1547005383792515291871035014902
 
@@ -200,6 +200,7 @@ int main(int argc, char **argv)
 
 	while(nh.getParam("skeleton_to_track", skeleton_to_track) && nh.ok())
 	{
+		ros::spinOnce();
 		updateParent();
 
 		ros::Time now = ros::Time::now();
@@ -228,7 +229,12 @@ int main(int argc, char **argv)
 			{
 				publishUserTransforms(skeleton_to_track, torso_local, torso_global, head_local, head_global, now);
 
-				//calcUserHistogram(skeleton_to_track, userHistogram, true);
+				if(!detected)
+				{
+					userHistogram = cv::Mat();
+				}
+
+				calcUserHistogram(skeleton_to_track, userHistogram, true);
 
 				kalmanUpdate(torso_global);
 
@@ -285,7 +291,7 @@ int main(int argc, char **argv)
 
 							double currentCorrelation = histogramComparison(histogram);
 
-							ROS_INFO("Current correlation: %f", currentCorrelation);
+							ROS_INFO("Correlation user %d: %f", user, currentCorrelation);
 
 							if(currentCorrelation > maxCorrelation)
 							{
@@ -320,9 +326,25 @@ int main(int argc, char **argv)
 				}
 			}
 
-			/*if(min <= DISTANCE_THRESHOLD)
+//			if(min <= 2 * DISTANCE_THRESHOLD)
+//			{
+//				skeleton_to_track = closer;
+//				ros::param::set("skeleton_to_track", skeleton_to_track);
+//
+//				for(int i = 1; i <= MAX_USERS; ++i)
+//				{
+//					distances[i] = std::numeric_limits<double>::max();
+//				}
+//
+//				ROS_INFO("Re-associating user to skeleton %d, distance: %f, correlation: %f.", skeleton_to_track, min, maxCorrelation);
+//
+//				continue;
+//			}
+
+			if((now - lastDetected).sec >= KALMAN_TIMEOUT)
 			{
-				skeleton_to_track = closer;
+				detected = false;
+				skeleton_to_track = 0;
 				ros::param::set("skeleton_to_track", skeleton_to_track);
 
 				for(int i = 1; i <= MAX_USERS; ++i)
@@ -330,38 +352,7 @@ int main(int argc, char **argv)
 					distances[i] = std::numeric_limits<double>::max();
 				}
 
-				ROS_INFO("Re-associating user to skeleton %d, distance %f.", skeleton_to_track, min);
-				
-				continue;
-			}*/
-
-			if((now - lastDetected).sec >= KALMAN_TIMEOUT)
-			{
-				if(min <= DISTANCE_THRESHOLD * 2)
-				{
-					skeleton_to_track = closer;
-					ros::param::set("skeleton_to_track", skeleton_to_track);
-
-					for(int i = 1; i <= MAX_USERS; ++i)
-					{
-						distances[i] = std::numeric_limits<double>::max();
-					}
-
-					ROS_INFO("Timeout reached, re-associating user to skeleton %d, distance %f.", skeleton_to_track, min);
-				}
-				else
-				{
-					detected = false;
-					skeleton_to_track = 0;
-					ros::param::set("skeleton_to_track", skeleton_to_track);
-
-					for(int i = 1; i <= MAX_USERS; ++i)
-					{
-						distances[i] = std::numeric_limits<double>::max();
-					}
-
-					ROS_INFO("Could not re-associate using kalman filter, returning to facial recognition re-association");
-				}
+				ROS_INFO("Could not re-associate using kalman filter, returning to facial recognition re-association");
 			}
 		}
 
@@ -552,7 +543,7 @@ void publishUserTransforms(int user, tf::Transform torso_local, tf::Transform to
 	oss.str("");
 	oss.clear();
 	oss << "global_torso_" << user;
-	//broadcaster.sendTransform(tf::StampedTransform(torso_global, now, parent_frame_id, oss.str()));
+	broadcaster.sendTransform(tf::StampedTransform(torso_global, now, parent_frame_id, oss.str()));
 
 	oss.str("");
 	oss.clear();
@@ -562,7 +553,7 @@ void publishUserTransforms(int user, tf::Transform torso_local, tf::Transform to
 	oss.str("");
 	oss.clear();
 	oss << "global_head_" << user;
-	//broadcaster.sendTransform(tf::StampedTransform(head_global, now, parent_frame_id, oss.str()));
+	broadcaster.sendTransform(tf::StampedTransform(head_global, now, parent_frame_id, oss.str()));
 }
 
 void publishAllTransforms()
@@ -722,15 +713,14 @@ void calcUserHistogram(int user, cv::Mat& histogram, bool accumulate)
 		}
 	}
 
-	int histSize = 256;
+	const int histSize[] = {256, 256, 256};
+	const int channels[] = {0, 1, 2};
 
 	float range[] = {0, 256};
-	const float* histRange = {range};
+	const float *histRange[] = {range, range, range};
 
-	int channels[] = {0, 1, 2};
-
-	cv::calcHist(&RGBImage, 1, channels, maskImage, histogram, 2, &histSize, &histRange, true, accumulate);
-	cv::normalize(histogram, histogram, 0, 255, cv::NORM_MINMAX, -1, cv::Mat());
+	cv::calcHist(&RGBImage, 1, channels, maskImage, histogram, 3, histSize, histRange, true, accumulate);
+	//cv::normalize(histogram, histogram, 0, 255, cv::NORM_MINMAX, -1, cv::Mat());
 }
 
 double histogramComparison(cv::Mat histogram)
