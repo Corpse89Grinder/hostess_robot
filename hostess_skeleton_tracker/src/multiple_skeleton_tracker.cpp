@@ -121,6 +121,7 @@ int main(int argc, char **argv)
 	if(g_DepthGenerator.IsCapabilitySupported(XN_CAPABILITY_ALTERNATIVE_VIEW_POINT))
 	{
 		g_DepthGenerator.GetAlternativeViewPointCap().SetViewPoint(g_ImageGenerator);
+		g_UserGenerator.GetAlternativeViewPointCap().SetViewPoint(g_ImageGenerator);
 		frame_id = "camera_rgb_frame";
 	}
 
