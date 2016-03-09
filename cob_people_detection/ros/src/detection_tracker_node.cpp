@@ -655,7 +655,7 @@ void DetectionTrackerNode::inputCallback(const cob_perception_msgs::DetectionArr
 			}
 
 			transform.child_frame_id_ = oss.str();
-			transform.frame_id_ = "camera_depth_optical_frame";
+			transform.frame_id_ = "camera_rgb_optical_frame";
 			transform.stamp_ = det.header.stamp;
 
 			transform.setOrigin(tf::Vector3(det.pose.pose.position.x, det.pose.pose.position.y, det.pose.pose.position.z));

@@ -14,6 +14,7 @@
 
 #define MAX_USERS 15
 #define DISTANCE_THRESHOLD 10
+#define LIKENESS_THRESHOLD 0.75
 #define KALMAN_TIMEOUT 5
 #define FOCUS_RATIO 1.1547005383792515291871035014902
 
@@ -23,15 +24,15 @@ std::string frame_id;
 std::string parent_frame_id("map");
 int skeleton_to_track = 0;
 
-xn::Context        g_Context;
-xn::DepthGenerator g_DepthGenerator;
-xn::UserGenerator  g_UserGenerator;
-xn::SceneAnalyzer	g_SceneAnalyzer;
-xn::ImageGenerator	g_ImageGenerator;
+xn::Context				g_Context;
+xn::DepthGenerator		g_DepthGenerator;
+xn::UserGenerator		g_UserGenerator;
+xn::SceneAnalyzer		g_SceneAnalyzer;
+xn::ImageGenerator		g_ImageGenerator;
 
 std::map<int, double> distances;
 
-cv::Mat RGBImage;
+cv::Mat HSVImage;
 
 void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator&, XnUserID, void*);
 void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator&, XnUserID, void*);
@@ -49,7 +50,7 @@ bool calcUserTransforms(XnUserID const&, tf::Transform&, tf::Transform&, tf::Tra
 void publishUserTransforms(int, tf::Transform, tf::Transform, tf::Transform, tf::Transform, ros::Time);
 void publishAllTransforms();
 
-void updateRGBImage(const sensor_msgs::ImageConstPtr&);
+void updateHSVImage(const sensor_msgs::ImageConstPtr&);
 void calcUserHistogram(int, cv::Mat&, bool);
 double histogramComparison(cv::Mat);
 
@@ -73,9 +74,6 @@ cv::KalmanFilter kf2(stateSize, measSize, contrSize);
 cv::Mat state(stateSize, 1, CV_32F);
 cv::Mat meas(measSize, 1, CV_32F);
 
-cv::Point F1;
-cv::Point F2;
-
 cv::Point oldPosition;
 
 //--------------------------------------------
@@ -94,7 +92,7 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
 
     image_transport::ImageTransport it(nh);
-	image_transport::Subscriber sub = it.subscribe("camera/rgb/image_raw", 1, updateRGBImage);
+	image_transport::Subscriber sub = it.subscribe("camera/rgb/image_raw", 1, updateHSVImage);
 
     std::string configFilename = ros::package::getPath("hostess_skeleton_tracker") + "/init/openni_tracker.xml";
     genericUserCalibrationFileName = ros::package::getPath("hostess_skeleton_tracker") + "/init/GenericUserCalibration.bin";
@@ -180,6 +178,8 @@ int main(int argc, char **argv)
 
     XnCallbackHandle hUserCallbacks;
     g_UserGenerator.RegisterUserCallbacks(User_NewUser, User_LostUser, NULL, hUserCallbacks);
+    g_UserGenerator.RegisterToUserExit(User_OutOfScene, NULL, hUserCallbacks);
+	g_UserGenerator.RegisterToUserReEnter(User_BackIntoScene, NULL, hUserCallbacks);
 
 	nRetVal = g_Context.StartGeneratingAll();
 
@@ -231,10 +231,12 @@ int main(int argc, char **argv)
 
 				if(!detected)
 				{
-					userHistogram = cv::Mat();
+					calcUserHistogram(skeleton_to_track, userHistogram, false);
 				}
-
-				calcUserHistogram(skeleton_to_track, userHistogram, true);
+				else
+				{
+					calcUserHistogram(skeleton_to_track, userHistogram, true);
+				}
 
 				kalmanUpdate(torso_global);
 
@@ -264,7 +266,7 @@ int main(int argc, char **argv)
 			g_UserGenerator.GetUsers(users, users_count);
 
 			int closer = 0;
-			double maxCorrelation;
+			double maxCorrelation = 0;
 
 			for(int i = 0; i < users_count; ++i)
 			{
@@ -274,17 +276,18 @@ int main(int argc, char **argv)
 
 				if(calcUserTransforms(user, torso_local, torso_global, head_local, head_global))
 				{
-					double currentF1 = std::sqrt(std::pow(torso_global.getOrigin().getX() - F1.x, 2) + std::pow(torso_global.getOrigin().getY() - F1.y, 2));
-					double currentF2 = std::sqrt(std::pow(torso_global.getOrigin().getX() - F2.x, 2) + std::pow(torso_global.getOrigin().getY() - F2.y, 2));
-					double current = currentF1 + currentF2;
+					publishUserTransforms(skeleton_to_track, torso_local, torso_global, head_local, head_global, now);
 
-					if(current < distances[user])
+					double distance = std::sqrt(std::pow(torso_global.getOrigin().getX() - state.at<float>(0), 2) + std::pow(torso_global.getOrigin().getY() - state.at<float>(1), 2));
+
+					if(distance < distances[user])
 					{
-						distances[user] = current;
+						distances[user] = distance;
 
-						if(distances[user] <= 2 * DISTANCE_THRESHOLD)
+						ROS_INFO("Distance user %d: %f", user, distance);
+
+						if(distances[user] <= DISTANCE_THRESHOLD)
 						{
-							//Sono dentro l'ellisse, controllo la somiglianza degli istogrammi
 							cv::Mat histogram;
 
 							calcUserHistogram(user, histogram, false);
@@ -302,19 +305,6 @@ int main(int argc, char **argv)
 				}
 			}
 
-//			if(closer != 0 && min < DISTANCE_THRESHOLD)
-//			{
-//				//skeleton_to_track = closer;
-//				//ros::param::set("skeleton_to_track", skeleton_to_track);
-//
-//				//for(int i = 1; i <= MAX_USERS; ++i)
-//				{
-//					new_skeletons_in_scene[closer]++;
-//				}
-//
-//				//ROS_INFO("Re-associating user to skeleton %d", skeleton_to_track);
-//			}
-
 			double min = std::numeric_limits<double>::max();
 
 			for(int i = 1; i <= MAX_USERS; ++i)
@@ -326,20 +316,20 @@ int main(int argc, char **argv)
 				}
 			}
 
-//			if(min <= 2 * DISTANCE_THRESHOLD)
-//			{
-//				skeleton_to_track = closer;
-//				ros::param::set("skeleton_to_track", skeleton_to_track);
-//
-//				for(int i = 1; i <= MAX_USERS; ++i)
-//				{
-//					distances[i] = std::numeric_limits<double>::max();
-//				}
-//
-//				ROS_INFO("Re-associating user to skeleton %d, distance: %f, correlation: %f.", skeleton_to_track, min, maxCorrelation);
-//
-//				continue;
-//			}
+			if(min <= DISTANCE_THRESHOLD && maxCorrelation >= LIKENESS_THRESHOLD)
+			{
+				skeleton_to_track = closer;
+				ros::param::set("skeleton_to_track", skeleton_to_track);
+
+				for(int i = 1; i <= MAX_USERS; ++i)
+				{
+					distances[i] = std::numeric_limits<double>::max();
+				}
+
+				ROS_INFO("Re-associating user to skeleton %d, distance: %f, correlation: %f.", skeleton_to_track, min, maxCorrelation);
+
+				continue;
+			}
 
 			if((now - lastDetected).sec >= KALMAN_TIMEOUT)
 			{
@@ -421,9 +411,9 @@ void kalmanInitialization()
 	kf1.measurementMatrix.at<float>(14) = 1.0f;
 
 	cv::setIdentity(kf1.processNoiseCov, cv::Scalar(1e-2));
-	//kf1.processNoiseCov.at<float>(21) = 1e-1;
-	//kf1.processNoiseCov.at<float>(28) = 1e-1;
-	//kf1.processNoiseCov.at<float>(35) = 1e-1;
+	kf1.processNoiseCov.at<float>(21) = 1e-1;
+	kf1.processNoiseCov.at<float>(28) = 1e-1;
+	kf1.processNoiseCov.at<float>(35) = 1e-1;
 
 	cv::setIdentity(kf1.measurementNoiseCov, cv::Scalar(1e-1));
 	cv::setIdentity(kf1.errorCovPost, cv::Scalar(1e-1));
@@ -439,9 +429,9 @@ void kalmanInitialization()
 	kf2.measurementMatrix.at<float>(14) = 1.0f;
 
 	cv::setIdentity(kf2.processNoiseCov, cv::Scalar(1e-2));
-	//kf2.processNoiseCov.at<float>(21) = 1e-1;
-	//kf2.processNoiseCov.at<float>(28) = 1e-1;
-	//kf2.processNoiseCov.at<float>(35) = 1e-1;
+	kf2.processNoiseCov.at<float>(21) = 1e-1;
+	kf2.processNoiseCov.at<float>(28) = 1e-1;
+	kf2.processNoiseCov.at<float>(35) = 1e-1;
 
 	cv::setIdentity(kf2.measurementNoiseCov, cv::Scalar(1e-1));
 	cv::setIdentity(kf2.errorCovPost, cv::Scalar(1e-1));
@@ -466,18 +456,6 @@ void kalmanPrediction()
 	kf2.transitionMatrix.at<float>(17) = dT;
 
 	state = kf2.predict();
-
-	double dX = oldPosition.x - state.at<float>(0);
-	double dY = oldPosition.y - state.at<float>(1);
-
-	oldPosition = cv::Point(state.at<float>(0), state.at<float>(1));
-
-	double delta = sqrt(pow(dX, 2) + pow(dY, 2));
-	dX = ((dX / delta) / FOCUS_RATIO) * DISTANCE_THRESHOLD;
-	dY = ((dY / delta) / FOCUS_RATIO) * DISTANCE_THRESHOLD;
-
-	F1 = cv::Point(state.at<float>(0) + dX, state.at<float>(1) + dY);
-	F2 = cv::Point(state.at<float>(0) - dX, state.at<float>(1) - dY);
 }
 
 void kalmanUpdate(tf::Transform transform)
@@ -529,7 +507,7 @@ void kalmanUpdate(tf::Transform transform)
 	}
 }
 
-//------------------------------------------------------------------------------
+//----------------------Transforms Methods--------------------------
 
 void publishUserTransforms(int user, tf::Transform torso_local, tf::Transform torso_global, tf::Transform head_local, tf::Transform head_global, ros::Time now)
 {
@@ -666,9 +644,9 @@ bool updateParent()
 	}
 }
 
-//-----------------------------------------------------------------------------------------
+//-----------------------------Histogram Methods------------------------------------
 
-void updateRGBImage(const sensor_msgs::ImageConstPtr& msg)
+void updateHSVImage(const sensor_msgs::ImageConstPtr& msg)
 {
 	cv::Mat image;
 
@@ -681,7 +659,9 @@ void updateRGBImage(const sensor_msgs::ImageConstPtr& msg)
 			return;
 		}
 
-		RGBImage = image.clone();
+		cv::cvtColor(image, image, cv::COLOR_BGR2HSV);
+
+		HSVImage = image.clone();
 	}
 	catch(cv_bridge::Exception& e)
 	{
@@ -713,14 +693,15 @@ void calcUserHistogram(int user, cv::Mat& histogram, bool accumulate)
 		}
 	}
 
-	const int histSize[] = {256, 256, 256};
-	const int channels[] = {0, 1, 2};
+	const int histSize[] = {50, 60};
+	const int channels[] = {0, 1};
 
-	float range[] = {0, 256};
-	const float *histRange[] = {range, range, range};
+	float h_range[] = {0, 180};
+	float s_range[] = {0, 256};
+	const float *histRange[] = {h_range, s_range};
 
-	cv::calcHist(&RGBImage, 1, channels, maskImage, histogram, 3, histSize, histRange, true, accumulate);
-	//cv::normalize(histogram, histogram, 0, 255, cv::NORM_MINMAX, -1, cv::Mat());
+	cv::calcHist(&HSVImage, 1, channels, maskImage, histogram, 2, histSize, histRange, true, accumulate);
+	cv::normalize(histogram, histogram, 0, 1, cv::NORM_MINMAX, -1, cv::Mat());
 }
 
 double histogramComparison(cv::Mat histogram)
