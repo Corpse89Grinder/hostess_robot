@@ -1,10 +1,8 @@
 #include <iostream>
 #include <deque>
 
-//#include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/video/tracking.hpp>
-//#include <opencv2/highgui/highgui_c.h>
 
 #define PI 3.14159265358979323846
 #define C 1.1547005383792515291871035014902
@@ -89,8 +87,10 @@ int main (int argc, char * const argv[]) {
             Point predictPt(prediction.at<float>(0),prediction.at<float>(1));
             Point predictPt2(prediction2.at<float>(0),prediction2.at<float>(1));
 
-            measurement(0) = mouse_info.x;
-			measurement(1) = mouse_info.y;
+            cv::Mat meas(2, 1, CV_32F);
+
+            measurement(0) = meas.at<float>(0) = mouse_info.x;
+			measurement(1) = meas.at<float>(1) = mouse_info.y;
 
 			KF.transitionMatrix.at<float>(2) = dT;
 			KF.transitionMatrix.at<float>(7) = dT;
@@ -98,7 +98,7 @@ int main (int argc, char * const argv[]) {
 			KF2.transitionMatrix.at<float>(7) = dT;
 
 			Point measPt(measurement(0),measurement(1));
-			if(mousev.size() >= 800)
+			if(mousev.size() >= 90)
 			{
 				mousev.pop_front();
 			}
@@ -119,11 +119,31 @@ int main (int argc, char * const argv[]) {
 
 			Mat estimated2 = KF2.correct(measurement);
 			Point statePt2(estimated2.at<float>(0),estimated2.at<float>(1));
-			if(secondkalmanv.size() >= 800)
+			if(secondkalmanv.size() >= 90)
 			{
 				secondkalmanv.pop_front();
 			}
 			secondkalmanv.push_back(statePt2);
+
+			cv::Mat error(2, 2, CV_32F, cv::Scalar::all(0));
+
+			cv::Mat temp = (KF2.measurementMatrix * KF2.errorCovPre * KF2.measurementMatrix.t()) + KF2.measurementNoiseCov;
+
+			error.at<float>(0, 0) = 1 / temp.at<float>(0, 0);
+			error.at<float>(1, 1) = 1 / temp.at<float>(1, 1);
+
+			cv::Mat mu(2, 1, CV_32F);
+			mu.at<float>(0) = fabs(meas.at<float>(0) - statePt2.x) / 100;
+			mu.at<float>(1) = fabs(meas.at<float>(1) - statePt2.y) / 100;
+
+			if(((mu.t() * error) * mu).operator cv::Mat().at<float>(0) <= 9)
+			{
+				std::cout << "ci sono" << std::endl;
+			}
+			else
+			{
+				std::cout << "non ci sono" << std::endl;
+			}
 
             // plot points
 #define drawCross( center, color, d )                                 \
@@ -132,10 +152,10 @@ Point( center.x + d, center.y + d ), color, 2, CV_AA, 0); \
 line( img, Point( center.x + d, center.y - d ),                \
 Point( center.x - d, center.y + d ), color, 2, CV_AA, 0 )
 
-            img = Scalar::all(255);
-            //drawCross( statePt2, Scalar(255, 255, 255), 5);
-            //drawCross( statePt, Scalar(255,255,255), 5 );
-            //drawCross( measPt, Scalar(255,255,255), 5 );
+            img = Scalar::all(0);
+            drawCross( statePt2, Scalar(255, 255, 255), 5);
+            drawCross( statePt, Scalar(255,255,255), 5 );
+            drawCross( measPt, Scalar(255,255,255), 5 );
 //            drawCross( predictPt, Scalar(0,255,0), 3 );
 //			line( img, statePt, measPt, Scalar(0,0,255), 3, CV_AA, 0 );
 //			line( img, statePt, predictPt, Scalar(0,255,255), 3, CV_AA, 0 );
@@ -144,7 +164,7 @@ Point( center.x - d, center.y + d ), color, 2, CV_AA, 0 )
 				line(img, mousev[i], mousev[i+1], Scalar(255,0,0), 1);
 			}
 			for (int i = 0; i < kalmanv.size()-1; i++) {
-				//line(img, kalmanv[i], kalmanv[i+1], Scalar(0,255,0), 1);
+				line(img, kalmanv[i], kalmanv[i+1], Scalar(0,255,0), 1);
 			}
 			for (int i = 0; i < secondkalmanv.size()-1; i++) {
 				line(img, secondkalmanv[i], secondkalmanv[i+1], Scalar(0,0,255), 1);

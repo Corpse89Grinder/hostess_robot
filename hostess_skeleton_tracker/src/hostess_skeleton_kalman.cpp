@@ -13,7 +13,7 @@
 #include <opencv2/video/tracking.hpp>
 
 #define MAX_USERS 15
-#define DISTANCE_THRESHOLD 10
+#define DISTANCE_THRESHOLD 1
 #define LIKENESS_THRESHOLD 0.75
 #define KALMAN_TIMEOUT 5
 #define FOCUS_RATIO 1.1547005383792515291871035014902
@@ -278,7 +278,23 @@ int main(int argc, char **argv)
 				{
 					publishUserTransforms(skeleton_to_track, torso_local, torso_global, head_local, head_global, now);
 
-					double distance = std::sqrt(std::pow(torso_global.getOrigin().getX() - state.at<float>(0), 2) + std::pow(torso_global.getOrigin().getY() - state.at<float>(1), 2));
+					//---------------------------------------------------------------------------
+
+					cv::Mat innovation = (kf2.measurementMatrix * kf2.errorCovPre * kf2.measurementMatrix.t()) + kf2.measurementNoiseCov;
+					cv::Mat error(2, 2, CV_32F, cv::Scalar::all(0));
+
+					error.at<float>(0, 0) = 1 / innovation.at<float>(0, 0);
+					error.at<float>(1, 1) = 1 / innovation.at<float>(1, 1);
+
+					cv::Mat mu(2, 1, CV_32F);
+					mu.at<float>(0) = fabs(torso_global.getOrigin().getX() - state.at<float>(0));
+					mu.at<float>(1) = fabs(torso_global.getOrigin().getY() - state.at<float>(1));
+
+					double distance = ((mu.t() * error * mu).operator cv::Mat().at<float>(0)) / 9;
+
+					//---------------------------------------------------------------------------
+
+					//double distance = std::sqrt(std::pow(torso_global.getOrigin().getX() - state.at<float>(0), 2) + std::pow(torso_global.getOrigin().getY() - state.at<float>(1), 2));
 
 					if(distance < distances[user])
 					{
