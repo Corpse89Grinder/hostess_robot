@@ -1,6 +1,6 @@
 #include "pan_controller.hpp"
 
-#define MAX_SPEED 0.6
+#define MAX_SPEED 0.8
 
 PanController::PanController(ros::NodeHandle& nh): private_nh_("~")
 {

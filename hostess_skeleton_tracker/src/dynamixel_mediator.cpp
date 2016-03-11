@@ -9,7 +9,7 @@
 //Maximum distance from skeleton head and face recognition points in space
 #define DISTANCE_THRESHOLD 0.1
 #define MINIMUM_ASSOCIATIONS_FOR_TRACKING 1
-#define MAX_MEAN 10
+#define MAX_MEAN 5
 
 #define PI 3.14159265358979323846
 
@@ -18,6 +18,8 @@ bool findClosestHeadToFace(std::vector<tf::StampedTransform>&, std::string&);
 std::string lookForSpecificBodyTransform(tf::TransformListener&, std::string, std::string, tf::StampedTransform&);
 int changeFrameAndReturnIndex(std::string&);
 void twistCallback(geometry_msgs::Twist);
+
+geometry_msgs::Twist newTwist;
 
 std::map<std::string, std::pair<ros::Time, int> > skeletons;
 std::map<std::string, ros::Time> last_stamp;
@@ -51,7 +53,7 @@ int main(int argc, char** argv)
     	ros::Duration(1).sleep();
     }
 
-    user_to_track = user_to_track.substr(1, user_to_track.size());
+	user_to_track = user_to_track.substr(1, user_to_track.size());
 
     std::string topic_to_subscribe("/kobra/tracker_cmd_vel");
     nh.getParam("topic_to_subscribe", topic_to_subscribe);
@@ -64,7 +66,8 @@ int main(int argc, char** argv)
     tf::TransformListener listener;
     tf::TransformBroadcaster broadcaster;
 
-    std::deque<double> speed_to_rotate(MAX_MEAN, 0);
+    std::deque<double> speed_to_rotate_left(MAX_MEAN, 0);
+	std::deque<double> speed_to_rotate_right(MAX_MEAN, 0);
 
     ros::param::set("skeleton_to_track", skeleton_to_track);
 
@@ -91,8 +94,10 @@ int main(int argc, char** argv)
 				break;
 			}
 
-			speed_to_rotate.pop_front();
-			speed_to_rotate.push_back(0);
+			speed_to_rotate_left.pop_front();
+			speed_to_rotate_left.push_back(0);
+			speed_to_rotate_right.pop_front();
+			speed_to_rotate_right.push_back(0);
 
 			ratio = std::max(0.0, ratio - 0.005);
 
@@ -131,9 +136,11 @@ int main(int argc, char** argv)
 
 			std::string returnString = lookForSpecificBodyTransform(listener, frame_id, skeleton_to_track_frame, transform);
 
+			double speed_to_add = newTwist.angular.z;
+
 			if(returnString == "found")
 			{
-				//TODO Ho la distanza, in base ad essa restituisco la percentuale di velocità del robot.
+				//Ho la distanza, in base ad essa restituisco la percentuale di velocità del robot.
 				double distance = std::sqrt(std::pow(transform.getOrigin().getX(), 2) + std::pow(transform.getOrigin().getY(), 2));
 
 				double alphaRAD = asin(transform.getOrigin().getY() / distance);
@@ -143,39 +150,92 @@ int main(int argc, char** argv)
 
 				if(alphaDEG > 2)
 				{
-					speed_to_rotate.pop_front();
-					speed_to_rotate.push_back(((fabs(alphaDEG) - 2) / 180 * PI) * 2.5);
+					speed_to_rotate_left.pop_front();
+					speed_to_rotate_left.push_back(((fabs(alphaDEG) - 2) / 180 * PI) * 3);
+					speed_to_rotate_right = std::deque<double>(MAX_MEAN, 0);
 
 					double speed = 0;
 
 					for(int i = 0; i < MAX_MEAN; i++)
 					{
-						speed += speed_to_rotate[i] / MAX_MEAN;
+						speed += speed_to_rotate_left[i] / MAX_MEAN;
 					}
 
-					pan_controller.turnLeft(speed);
+					if(speed_to_add > 0)
+					{
+						//Il robot sta girando a sinistra
+						speed -= speed_to_add;
+					}
+					else
+					{
+						//Il robot sta girando a destra
+						speed += speed_to_add;
+					}
 
-					direction = "left";
+					if(speed < 0)
+					{
+						speed = -speed;
+
+						pan_controller.turnRight(speed);
+
+						direction = "right";
+
+						speed_to_rotate_right = speed_to_rotate_left;
+						speed_to_rotate_left = std::deque<double>(MAX_MEAN, 0);
+					}
+					else
+					{
+						pan_controller.turnLeft(speed);
+
+						direction = "left";
+					}
 				}
 				else if(alphaDEG < -2)
 				{
-					speed_to_rotate.pop_front();
-					speed_to_rotate.push_back(((fabs(alphaDEG) - 2) / 180 * PI) * 2.5);
+					speed_to_rotate_right.pop_front();
+					speed_to_rotate_right.push_back(((fabs(alphaDEG) - 2) / 180 * PI) * 3);
+					speed_to_rotate_left = std::deque<double>(MAX_MEAN, 0);
 
 					double speed = 0;
 
 					for(int i = 0; i < MAX_MEAN; i++)
 					{
-						speed += speed_to_rotate[i] / MAX_MEAN;
+						speed += speed_to_rotate_right[i] / MAX_MEAN;
 					}
 
-					pan_controller.turnRight(speed);
+					if(speed_to_add > 0)
+					{
+						//Il robot sta girando a sinistra
+						speed += speed_to_add;
+					}
+					else
+					{
+						//Il robot sta girando a destra
+						speed -= speed_to_add;
+					}
 
-					direction = "right";
+					if(speed < 0)
+					{
+						speed = -speed;
+
+						pan_controller.turnLeft(speed);
+
+						direction = "left";
+
+						speed_to_rotate_left = speed_to_rotate_right;
+						speed_to_rotate_right = std::deque<double>(MAX_MEAN, 0);
+					}
+					else
+					{
+						pan_controller.turnRight(speed);
+
+						direction = "right";
+					}
 				}
 				else
 				{
-					speed_to_rotate = std::deque<double>(MAX_MEAN, 0);
+					speed_to_rotate_left = std::deque<double>(MAX_MEAN, 0); 
+					speed_to_rotate_right = std::deque<double>(MAX_MEAN, 0);
 
 					pan_controller.standStill(),
 
@@ -209,17 +269,21 @@ int main(int argc, char** argv)
 			}
 			else if(returnString == "not found")
 			{
-				speed_to_rotate.pop_front();
-				speed_to_rotate.push_back(0.0);
+				speed_to_rotate_left.pop_front();
+				speed_to_rotate_left.push_back(0.0);
+				speed_to_rotate_right.pop_front();
+				speed_to_rotate_right.push_back(0.0);
 
-				double speed = 0;
+				double speed_left = 0;
+				double speed_right = 0;
 
 				for(int i = 0; i < MAX_MEAN; i++)
 				{
-						speed += speed_to_rotate[i] / MAX_MEAN;
+						speed_left += speed_to_rotate_left[i] / MAX_MEAN;
+						speed_right += speed_to_rotate_right[i] / MAX_MEAN;
 				}
 
-				if(speed == 0)
+				if(speed_left == 0 && speed_right == 0)
 				{
 					direction == "still";
 					pan_controller.standStill();
@@ -227,18 +291,18 @@ int main(int argc, char** argv)
 
 				if(direction == "left")
 				{
-						pan_controller.turnLeft(speed);
+						pan_controller.turnLeft(speed_left);
 				}
 				else if(direction == "right")
 				{
-						pan_controller.turnRight(speed);
+						pan_controller.turnRight(speed_right);
 				}
 
 				ratio = std::max(0.0, ratio - 0.005);
 			}
 			else if(false && ((returnString == "skip" && skeleton_to_track == -1) || skeleton_to_track == -1))
 			{
-				speed_to_rotate.pop_front();
+/*				speed_to_rotate.pop_front();
 				speed_to_rotate.push_back(0.0);
 
 				double speed = 0;
@@ -261,7 +325,7 @@ int main(int argc, char** argv)
 				else if(direction == "right")
 				{
 						pan_controller.turnRight(speed);
-				}
+				}*/
 			}
 
 			ros::spinOnce();
@@ -295,7 +359,6 @@ void lookForEveryHeadTransform(tf::TransformListener& listener, std::vector<tf::
 		{
 			tf::StampedTransform transform;
 
-			//TODO sistemare i tempi, posso chiedere 2 tempi diversi per i 2 frames da comparare (ultima face e tf passate).
 			listener.lookupTransform(user_to_track, oss.str(), ros::Time(0), transform);
 
 			if(transform.stamp_ != last_stamp[oss.str()])
@@ -400,8 +463,6 @@ int changeFrameAndReturnIndex(std::string& frame)
 
 void twistCallback(geometry_msgs::Twist oldTwist)
 {
-	geometry_msgs::Twist newTwist;
-
 	newTwist.linear.x = oldTwist.linear.x * ratio;
 	newTwist.angular.z = oldTwist.angular.z * ratio;
 
