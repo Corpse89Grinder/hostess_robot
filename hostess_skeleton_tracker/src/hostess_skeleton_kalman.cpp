@@ -92,7 +92,7 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
 
     image_transport::ImageTransport it(nh);
-	image_transport::Subscriber sub = it.subscribe("camera/rgb/image_raw", 1, updateHSVImage);
+	image_transport::Subscriber sub = it.subscribe("/camera/rgb/image_raw", 1, updateHSVImage);
 
     std::string configFilename = ros::package::getPath("hostess_skeleton_tracker") + "/init/openni_tracker.xml";
     genericUserCalibrationFileName = ros::package::getPath("hostess_skeleton_tracker") + "/init/GenericUserCalibration.bin";
@@ -281,7 +281,14 @@ int main(int argc, char **argv)
 					//---------------------------------------------------------------------------
 
 					cv::Mat innovation = (kf2.measurementMatrix * kf2.errorCovPre * kf2.measurementMatrix.t()) + kf2.measurementNoiseCov;
-					cv::Mat error = innovation.inv();
+					cv::Mat error(2, 2, CV_32F);
+
+					error.at<float>(0, 0) = innovation.at<float>(0, 0);
+					error.at<float>(0, 1) = innovation.at<float>(0, 1);
+					error.at<float>(1, 0) = innovation.at<float>(1, 0);
+					error.at<float>(1, 1) = innovation.at<float>(1, 1);
+
+					error = error.inv();
 
 					cv::Mat mu(2, 1, CV_32F);
 					mu.at<float>(0) = fabs(torso_global.getOrigin().getX() - state.at<float>(0));

@@ -51,6 +51,8 @@ int main(int argc, char** argv)
     	ros::Duration(1).sleep();
     }
 
+    user_to_track = user_to_track.substr(1, user_to_track.size());
+
     std::string topic_to_subscribe("/kobra/tracker_cmd_vel");
     nh.getParam("topic_to_subscribe", topic_to_subscribe);
     std::string topic_to_advertise("/kobra/cmd_vel");
@@ -142,7 +144,7 @@ int main(int argc, char** argv)
 				if(alphaDEG > 2)
 				{
 					speed_to_rotate.pop_front();
-					speed_to_rotate.push_back(((fabs(alphaDEG) - 2) / 180 * PI) * 3);
+					speed_to_rotate.push_back(((fabs(alphaDEG) - 2) / 180 * PI) * 2.5);
 
 					double speed = 0;
 
@@ -158,7 +160,7 @@ int main(int argc, char** argv)
 				else if(alphaDEG < -2)
 				{
 					speed_to_rotate.pop_front();
-					speed_to_rotate.push_back(((fabs(alphaDEG) - 2) / 180 * PI) * 3);
+					speed_to_rotate.push_back(((fabs(alphaDEG) - 2) / 180 * PI) * 2.5);
 
 					double speed = 0;
 
