@@ -107,6 +107,23 @@ void PanController::standStill()
 	return;
 }
 
+void PanController::turn(double angle)
+{
+	double presentPosition;
+
+	dxio->getPresentPosition(0, presentPosition);
+
+	std::vector<std::vector<double> > v;
+	std::vector<double> pv;
+
+	pv.clear();
+	pv.push_back(presentPosition + angle);
+	pv.push_back(MAX_SPEED);
+	v.push_back(pv);
+
+	dxio->setMultiPosVel(v);
+}
+
 void PanController::turnLeft(double speed)
 {
 	std::vector<std::vector<double> > v;

@@ -27,6 +27,7 @@ class PanController
 		void goHome();
 		bool isHome();
 		void standStill();
+		void turn(double);
 		void turnRight(double);
 		void turnLeft(double);
 		double getRotation();

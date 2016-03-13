@@ -94,6 +94,11 @@ int main(int argc, char** argv)
 				break;
 			}
 
+			speed_to_rotate_left.pop_front();
+			speed_to_rotate_left.push_back(0);
+			speed_to_rotate_right.pop_front();
+			speed_to_rotate_right.push_back(0);
+
 			ratio = std::max(0.0, ratio - 0.005);
 
 			ros::spinOnce();
@@ -131,6 +136,8 @@ int main(int argc, char** argv)
 
 			std::string returnString = lookForSpecificBodyTransform(listener, frame_id, skeleton_to_track_frame, transform);
 
+			double speed_to_add = newTwist.angular.z;
+
 			if(returnString == "found")
 			{
 				//Ho la distanza, in base ad essa restituisco la percentuale di velocità del robot.
@@ -138,9 +145,102 @@ int main(int argc, char** argv)
 
 				double alphaRAD = asin(transform.getOrigin().getY() / distance);
 
-				double turnAngle = alphaRAD + newTwist.angular.z;
+				double alphaDEG = alphaRAD / PI * 180;
+				//Alpha = angolo espresso in gradi
 
-				pan_controller.turn(turnAngle);
+				if(alphaDEG > 2)
+				{
+					speed_to_rotate_left.pop_front();
+					speed_to_rotate_left.push_back(((fabs(alphaDEG) - 2) / 180 * PI) * 3);
+					speed_to_rotate_right = std::deque<double>(MAX_MEAN, 0);
+
+					double speed = 0;
+
+					for(int i = 0; i < MAX_MEAN; i++)
+					{
+						speed += speed_to_rotate_left[i] / MAX_MEAN;
+					}
+
+					if(speed_to_add > 0)
+					{
+						//Il robot sta girando a sinistra
+						speed -= speed_to_add;
+					}
+					else
+					{
+						//Il robot sta girando a destra
+						speed += speed_to_add;
+					}
+
+					if(speed < 0)
+					{
+						speed = -speed;
+
+						pan_controller.turnRight(speed);
+
+						direction = "right";
+
+						speed_to_rotate_right = speed_to_rotate_left;
+						speed_to_rotate_left = std::deque<double>(MAX_MEAN, 0);
+					}
+					else
+					{
+						pan_controller.turnLeft(speed);
+
+						direction = "left";
+					}
+				}
+				else if(alphaDEG < -2)
+				{
+					speed_to_rotate_right.pop_front();
+					speed_to_rotate_right.push_back(((fabs(alphaDEG) - 2) / 180 * PI) * 3);
+					speed_to_rotate_left = std::deque<double>(MAX_MEAN, 0);
+
+					double speed = 0;
+
+					for(int i = 0; i < MAX_MEAN; i++)
+					{
+						speed += speed_to_rotate_right[i] / MAX_MEAN;
+					}
+
+					if(speed_to_add > 0)
+					{
+						//Il robot sta girando a sinistra
+						speed += speed_to_add;
+					}
+					else
+					{
+						//Il robot sta girando a destra
+						speed -= speed_to_add;
+					}
+
+					if(speed < 0)
+					{
+						speed = -speed;
+
+						pan_controller.turnLeft(speed);
+
+						direction = "left";
+
+						speed_to_rotate_left = speed_to_rotate_right;
+						speed_to_rotate_right = std::deque<double>(MAX_MEAN, 0);
+					}
+					else
+					{
+						pan_controller.turnRight(speed);
+
+						direction = "right";
+					}
+				}
+				else
+				{
+					speed_to_rotate_left = std::deque<double>(MAX_MEAN, 0); 
+					speed_to_rotate_right = std::deque<double>(MAX_MEAN, 0);
+
+					pan_controller.standStill(),
+
+					direction == "still";
+				}
 
 				if(skeleton_to_track != -1)
 				{
@@ -169,7 +269,63 @@ int main(int argc, char** argv)
 			}
 			else if(returnString == "not found")
 			{
+				speed_to_rotate_left.pop_front();
+				speed_to_rotate_left.push_back(0.0);
+				speed_to_rotate_right.pop_front();
+				speed_to_rotate_right.push_back(0.0);
+
+				double speed_left = 0;
+				double speed_right = 0;
+
+				for(int i = 0; i < MAX_MEAN; i++)
+				{
+						speed_left += speed_to_rotate_left[i] / MAX_MEAN;
+						speed_right += speed_to_rotate_right[i] / MAX_MEAN;
+				}
+
+				if(speed_left == 0 && speed_right == 0)
+				{
+					direction == "still";
+					pan_controller.standStill();
+				}
+
+				if(direction == "left")
+				{
+						pan_controller.turnLeft(speed_left);
+				}
+				else if(direction == "right")
+				{
+						pan_controller.turnRight(speed_right);
+				}
+
 				ratio = std::max(0.0, ratio - 0.005);
+			}
+			else if(false && ((returnString == "skip" && skeleton_to_track == -1) || skeleton_to_track == -1))
+			{
+/*				speed_to_rotate.pop_front();
+				speed_to_rotate.push_back(0.0);
+
+				double speed = 0;
+
+				for(int i = 0; i < MAX_MEAN; i++)
+				{
+						speed += speed_to_rotate[i] / MAX_MEAN;
+				}
+
+				if(speed == 0)
+				{
+						direction == "still";
+						pan_controller.standStill();
+				}
+
+				if(direction == "left")
+				{
+						pan_controller.turnLeft(speed);
+				}
+				else if(direction == "right")
+				{
+						pan_controller.turnRight(speed);
+				}*/
 			}
 
 			ros::spinOnce();
