@@ -39,6 +39,9 @@ PanController::PanController(ros::NodeHandle& nh): private_nh_("~")
 	extremeRight = (dxio->getMinAngle(0) - 2048) * 0.0015339804;	//Estrema destra del motore
 	extremeLeft = (dxio->getMaxAngle(0) - 2048) * 0.0015339804;	//Estrema sinistra del motore
 
+	turningSpeed = 0;
+	lambda = 0.98;
+
 	goHome();
 
 	while(!isHome())
@@ -97,9 +100,11 @@ void PanController::standStill()
 
 	dxio->getPresentPosition(0, presentPosition);
 
+	turningSpeed = 0.0;
+
 	pv.clear();
 	pv.push_back(presentPosition);
-	pv.push_back(0.0);
+	pv.push_back(turningSpeed);
 	v.push_back(pv);
 
 	dxio->setMultiPosVel(v);
@@ -116,9 +121,11 @@ void PanController::turn(double angle)
 	std::vector<std::vector<double> > v;
 	std::vector<double> pv;
 
+	turningSpeed = (lambda * turningSpeed) + (1 - lambda) * fabs(angle);
+
 	pv.clear();
 	pv.push_back(presentPosition + angle);
-	pv.push_back(MAX_SPEED);
+	pv.push_back(std::min(MAX_SPEED, turningSpeed));
 	v.push_back(pv);
 
 	dxio->setMultiPosVel(v);
