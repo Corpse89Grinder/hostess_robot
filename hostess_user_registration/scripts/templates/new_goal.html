@@ -132,9 +132,12 @@
 		
 		window.addEventListener("resize", resizer);
 		
-		resizer();
-		
-		maxX = minX + (resolution * document.getElementById('map').naturalWidth);
-		maxY = minY + (resolution * document.getElementById('map').naturalHeight);
+		document.getElementById("map").onload = function()
+		{
+			maxX = minX + (resolution * document.getElementById('map').naturalWidth);
+			maxY = minY + (resolution * document.getElementById('map').naturalHeight);
+
+			resizer();
+		};
 	</script>
 {% endblock %}
