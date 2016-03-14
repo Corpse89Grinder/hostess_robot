@@ -1,6 +1,6 @@
 #include "pan_controller.hpp"
 
-#define MAX_SPEED 0.8
+#define MAX_SPEED 0.4
 
 PanController::PanController(ros::NodeHandle& nh): private_nh_("~")
 {
@@ -121,11 +121,11 @@ void PanController::turn(double angle)
 	std::vector<std::vector<double> > v;
 	std::vector<double> pv;
 
-	turningSpeed = (lambda * turningSpeed) + (1 - lambda) * fabs(angle);
+	turningSpeed = ((1 - lambda) * turningSpeed) + (lambda * fabs(angle));
 
 	pv.clear();
 	pv.push_back(presentPosition + angle);
-	pv.push_back(std::min(MAX_SPEED, turningSpeed));
+	pv.push_back(std::max(0.1, MAX_SPEED - turningSpeed));
 	v.push_back(pv);
 
 	dxio->setMultiPosVel(v);

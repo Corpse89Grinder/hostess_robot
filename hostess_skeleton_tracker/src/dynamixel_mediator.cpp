@@ -138,7 +138,7 @@ int main(int argc, char** argv)
 
 				double alphaRAD = asin(transform.getOrigin().getY() / distance);
 
-				double turnAngle = alphaRAD + newTwist.angular.z;
+				double turnAngle = alphaRAD - newTwist.angular.z;
 
 				pan_controller.turn(turnAngle);
 
@@ -170,6 +170,7 @@ int main(int argc, char** argv)
 			else if(returnString == "not found")
 			{
 				ratio = std::max(0.0, ratio - 0.005);
+				pan_controller.standStill();
 			}
 
 			ros::spinOnce();
