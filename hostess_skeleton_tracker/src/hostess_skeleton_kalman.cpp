@@ -94,7 +94,7 @@ int main(int argc, char **argv)
     image_transport::ImageTransport it(nh);
 	image_transport::Subscriber sub = it.subscribe("/camera/rgb/image_raw", 1, updateHSVImage);
 
-    std::string configFilename = ros::package::getPath("hostess_skeleton_tracker") + "/init/openni_tracker.xml";
+	std::string configFilename = ros::package::getPath("hostess_skeleton_tracker") + "/init/openni_tracker.xml";
     genericUserCalibrationFileName = ros::package::getPath("hostess_skeleton_tracker") + "/init/GenericUserCalibration.bin";
 
     XnStatus nRetVal;

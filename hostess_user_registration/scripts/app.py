@@ -21,6 +21,8 @@ app = Flask(__name__)
 
 app.config.from_pyfile('config/config.py', silent=False)
 
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.environ['HOME'] + '/.ros/hostess_user_registration/database.sqlite'
+
 db = SQLAlchemy(app)
 Bootstrap(app)
 socketio = SocketIO(app, async_mode='eventlet')
