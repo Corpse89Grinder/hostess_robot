@@ -21,7 +21,7 @@ class PanController
 
 		bool homed = false;
 
-		double turningSpeed, lambda;
+		double turningSpeed, lambda, targetPosition, lastSpeed;
 
 	public:
 		PanController(ros::NodeHandle&);
@@ -29,9 +29,10 @@ class PanController
 		void goHome();
 		bool isHome();
 		void standStill();
-		void turn(double);
+		void turn(double, double);
 		void turnRight(double);
 		void turnLeft(double);
+		void continueTurning();
 		double getRotation();
 };
 

@@ -1,6 +1,6 @@
 #include "pan_controller.hpp"
 
-#define MAX_SPEED 0.4
+#define MAX_SPEED 0.5
 
 PanController::PanController(ros::NodeHandle& nh): private_nh_("~")
 {
@@ -40,6 +40,8 @@ PanController::PanController(ros::NodeHandle& nh): private_nh_("~")
 	extremeLeft = (dxio->getMaxAngle(0) - 2048) * 0.0015339804;	//Estrema sinistra del motore
 
 	turningSpeed = 0;
+	lastSpeed = 0;
+
 	lambda = 0.98;
 
 	goHome();
@@ -112,7 +114,7 @@ void PanController::standStill()
 	return;
 }
 
-void PanController::turn(double angle)
+void PanController::turn(double angle, double robotRotation)
 {
 	double presentPosition;
 
@@ -121,14 +123,42 @@ void PanController::turn(double angle)
 	std::vector<std::vector<double> > v;
 	std::vector<double> pv;
 
-	turningSpeed = ((1 - lambda) * turningSpeed) + (lambda * fabs(angle));
+	double deltaAngle = angle - robotRotation;
+
+	targetPosition = presentPosition + deltaAngle;
+
+	turningSpeed = ((1 - lambda) * turningSpeed) + (lambda * fabs(deltaAngle));
 
 	pv.clear();
-	pv.push_back(presentPosition + angle);
-	pv.push_back(std::max(0.1, MAX_SPEED - turningSpeed));
+	pv.push_back(targetPosition);
+	pv.push_back(std::min(MAX_SPEED, turningSpeed));
 	v.push_back(pv);
 
 	dxio->setMultiPosVel(v);
+}
+
+void PanController::continueTurning()
+{
+	double presentPosition;
+
+	dxio->getPresentPosition(0, presentPosition);
+
+	if(presentPosition >= targetPosition - 0.01 && presentPosition >= targetPosition + 0.01)
+	{
+		return;
+	}
+	else
+	{
+		std::vector<std::vector<double> > v;
+		std::vector<double> pv;
+
+		pv.clear();
+		pv.push_back(targetPosition);
+		pv.push_back(std::max(0.1, MAX_SPEED - turningSpeed));
+		v.push_back(pv);
+
+		dxio->setMultiPosVel(v);
+	}
 }
 
 void PanController::turnLeft(double speed)

@@ -138,9 +138,7 @@ int main(int argc, char** argv)
 
 				double alphaRAD = asin(transform.getOrigin().getY() / distance);
 
-				double turnAngle = alphaRAD - newTwist.angular.z;
-
-				pan_controller.turn(turnAngle);
+				pan_controller.turn(alphaRAD, newTwist.angular.z);
 
 				if(skeleton_to_track != -1)
 				{
@@ -171,6 +169,10 @@ int main(int argc, char** argv)
 			{
 				ratio = std::max(0.0, ratio - 0.005);
 				pan_controller.standStill();
+			}
+			else if(returnString == "skip")
+			{
+				pan_controller.continueTurning();
 			}
 
 			ros::spinOnce();
