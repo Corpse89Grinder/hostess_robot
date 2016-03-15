@@ -21,7 +21,7 @@ class PanController
 
 		bool homed = false;
 
-		double turningSpeed, lambda, targetPosition, lastSpeed;
+		double turningSpeed, lambda, targetPosition;
 
 	public:
 		PanController(ros::NodeHandle&);

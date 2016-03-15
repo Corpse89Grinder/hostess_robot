@@ -1,6 +1,6 @@
 <launch>
 	<group ns="hostess_skeleton_tracker">
-		<param name="user_to_track" type="str" value="00000004" />
+		<!--param name="user_to_track" type="str" value="00000004" /-->
 		<param name="skeleton_to_track" type="int" value="0" />
 
 		<node pkg="hostess_skeleton_tracker" type="hostess_skeleton_kalman" name="hostess_skeleton_kalman" output="screen" />

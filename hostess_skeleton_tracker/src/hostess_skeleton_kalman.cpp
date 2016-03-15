@@ -603,8 +603,10 @@ bool calcUserTransforms(XnUserID const& user, tf::Transform& torso_local, tf::Tr
 		g_UserGenerator.GetSkeletonCap().GetSkeletonJointPosition(user, XN_SKEL_HEAD, head_position);
 		g_UserGenerator.GetSkeletonCap().GetSkeletonJointOrientation(user, XN_SKEL_HEAD, head_orientation);
 
-		if(torso_position.fConfidence < 1 || head_position.fConfidence < 1)
+		if(torso_position.fConfidence < 1 && head_position.fConfidence < 1)
 		{
+			ROS_WARN("Occhio!");
+
 			return false;
 		}
 	}
