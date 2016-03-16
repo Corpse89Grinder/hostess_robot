@@ -16,7 +16,7 @@
 #define DISTANCE_THRESHOLD 1
 #define LIKENESS_THRESHOLD 0.75
 #define KALMAN_TIMEOUT 5
-#define FOCUS_RATIO 1.1547005383792515291871035014902
+//#define FOCUS_RATIO 1.1547005383792515291871035014902
 
 std::string genericUserCalibrationFileName;
 
@@ -319,24 +319,15 @@ int main(int argc, char **argv)
 							if(currentCorrelation > maxCorrelation)
 							{
 								maxCorrelation = currentCorrelation;
+
+								closer = user;
 							}
 						}
 					}
 				}
 			}
 
-			double min = std::numeric_limits<double>::max();
-
-			for(int i = 1; i <= MAX_USERS; ++i)
-			{
-				if(distances[i] < min)
-				{
-					min = distances[i];
-					closer = i;
-				}
-			}
-
-			if(min <= DISTANCE_THRESHOLD && maxCorrelation >= LIKENESS_THRESHOLD)
+			if(maxCorrelation >= LIKENESS_THRESHOLD)
 			{
 				skeleton_to_track = closer;
 				ros::param::set("skeleton_to_track", skeleton_to_track);
@@ -346,7 +337,7 @@ int main(int argc, char **argv)
 					distances[i] = std::numeric_limits<double>::max();
 				}
 
-				ROS_INFO("Re-associating user to skeleton %d, distance: %f, correlation: %f.", skeleton_to_track, min, maxCorrelation);
+				ROS_INFO("Re-associating user to skeleton %d, distance: %f, correlation: %f.", skeleton_to_track, distances[closer], maxCorrelation);
 
 				continue;
 			}
