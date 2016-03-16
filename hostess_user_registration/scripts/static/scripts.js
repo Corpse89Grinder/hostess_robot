@@ -86,7 +86,7 @@ function startCalibration(button, name, surname, goal, mail)
 	button.value = 'In attesa del server...';
 	
 	var namespace = '/new_user/calibration';
-	
+
 	var socket = io.connect('http://' + document.domain + ':' + location.port + namespace);
 	
 	var timeout;
@@ -107,21 +107,16 @@ function startCalibration(button, name, surname, goal, mail)
 		button.value = 'Aggiornamento robot in corso...';
 		socket.emit('credentials', {nome: name, cognome: surname, destinazione: goal, email: mail});
 	});
+
+	update_button = document.getElementById("update-button");
 	
-	socket.on('saved', function(msg)
+	socket.on('saved', function()
 	{
 		button.value = 'Calibrazione completata';
 		
-		if(msg.status == 0)
-		{
-			window.alert('Calibrazione completata correttamente.\nUtente aggiunto al database.');
-		}
-		else if(msg.status == 1 || msg.status == 2)
-		{
-			window.alert('L\'utente è stato calibrato e aggiunto correttamente\nma non è stato possibile aggiornare il robot.\nRiavviare il robot per caricare il modello aggiornato.');
-		}
-		
-		window.location='/users';
+		window.alert('Calibrazione completata correttamente.\nUtente aggiunto al database.\nAggiornare il robot per rendere effettive le modifiche.');
+
+		enableButton(update_button);
 	});
 	
 	socket.on('failed', failedUserAdd);
@@ -129,6 +124,42 @@ function startCalibration(button, name, surname, goal, mail)
 	socket.emit('start');
 	
 	timeout = window.setTimeout(failedUserAdd, 10000);
+}
+
+function updateRobot(button)
+{
+	disableButton(button);
+	button.value = 'Aggiornamento del robot in corso...';
+
+	var namespace = '/new_user/calibration';
+
+	var socket = io.connect('http://' + document.domain + ':' + location.port + namespace);
+
+	socket.emit('update');
+
+	socket.on('updated', function(msg)
+	{
+		if(msg.status == 0)
+		{
+			button.value = 'Robot aggiornato!';
+
+			window.alert('Robot aggiornato correttamente.');
+		}
+		else if(msg.status == 1)
+		{
+			button.value = 'Aggiungi almeno un\'altra persona!';
+
+			window.alert('Impossibile aggiornare il robot con solo una persona registrata.\nRegistrarne almeno due prima di eseguire il logout, altrimenti il robot non funzionerà!');
+		}
+		else if(msg.status == 2)
+		{
+			button.value = 'Aggiornamento fallito!';
+
+			window.alert('Aggiornamento fallito, riavviare il robot ed accertarsi che sia tutto ok!');
+		}
+
+		window.location='/users';
+	});
 }
 
 function failedUserAdd()

@@ -219,21 +219,26 @@ def save_user(message):
     with app.app_context():
         db.session.add(user)
     
-    client = actionlib.SimpleActionClient('/cob_people_detection/face_recognizer/load_model_server', loadModelAction)
+    emit('saved')
     
-    if client.wait_for_server(timeout=rospy.Duration(10)):
-        goal = loadModelGoal()
-        client.send_goal(goal)
+@socketio.on('update', namespace='/new_user/calibration')
+def update():
+    count = User.query.count()
+    
+    if count > 1:
+        client = actionlib.SimpleActionClient('/cob_people_detection/face_recognizer/load_model_server', loadModelAction)
         
-        if client.wait_for_result(rospy.Duration(10)):
-            emit('saved', {'status': 0})
-        else:
-            emit('saved', {'status': 2})
+        if client.wait_for_server(timeout=rospy.Duration(10)):
+            goal = loadModelGoal()
+            client.send_goal(goal)
+            
+            if client.wait_for_result(rospy.Duration(10)):
+                emit('updated', {'status': 0})
+            else:
+                emit('updated', {'status': 2})
     else:
-        emit('saved', {'status': 1})
+        emit('updated', {'status': 1})
 
-    disconnect()
-    
 @app.route('/delete_users')
 def delete_user():
     return render_template('delete_users.html', users=User.query.all())
@@ -289,4 +294,4 @@ def index():
 
 if __name__ == '__main__':
     rospy.init_node('hostess_management', disable_signals=True)
-    app.run(host='0.0.0.0', port=5000)
+    socketio.run(app=app, host='0.0.0.0', port=5000)
