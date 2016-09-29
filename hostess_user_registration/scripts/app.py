@@ -1,9 +1,10 @@
 #!/usr/bin/python
 import eventlet
+import sqlalchemy
 eventlet.monkey_patch()
 from flask import Flask, render_template, request, redirect, url_for
 from flask.ext.wtf import Form
-from wtforms import StringField, SelectField, FloatField
+from wtforms import StringField, SelectField, FloatField, SubmitField, IntegerField
 from flask_bootstrap import Bootstrap
 from flask.ext.sqlalchemy import SQLAlchemy
 from sqlalchemy import func
@@ -34,6 +35,7 @@ class User(db.Model):
     surname = db.Column(db.String(64))
     goal_id = db.Column(db.Integer, db.ForeignKey('goals.id'))
     email = db.Column(db.String(64), unique=True, index=True)
+    pin = db.Column(db.Integer, index=True)
 
     def __repr__(self):
         return '<User %r>' % self.name
@@ -93,7 +95,40 @@ class RegistrationForm(Form):
             self.goal.errors.append('Seleziona una destinazione')
 
         return outcome
-
+    
+class LoginForm(Form):
+    mail = StringField('E-Mail')
+    pin = IntegerField('Pin')
+    
+    def __init__(self, *args, **kwargs):
+        Form.__init__(self, *args, **kwargs)
+        
+    def validate(self):
+        outcome = True
+        
+        rv = Form.validate(self)
+        if not rv:
+            outcome = False
+            
+        if self.mail.data == '':
+            self.mail.errors.append('Campo obbligatorio')
+            outcome = False
+            
+        if self.pin.data == '':
+            self.pin.errors.append('Campo obbligatorio')
+            outcome = False
+            
+        if outcome == True:
+            user = User.query.filter_by(pin = self.pin.data, email=self.mail.data).first()
+        
+            if user is None:
+                self.mail.errors.append('')
+                self.pin.errors.append('E-mail e/o password errata!')
+                return False
+            else:
+                return True
+        else:
+            return False
 
 class AddGoalForm(Form):
     label = StringField('Destinazione')
@@ -209,12 +244,17 @@ def feedback_cb(feedback):
 
 @socketio.on('credentials', namespace='/new_user/calibration')
 def save_user(message):
-    name=message['nome']
-    surname=message['cognome']
-    goal_id=message['destinazione']
-    email=message['email']
+    name = message['nome']
+    surname = message['cognome']
+    goal_id = message['destinazione']
+    email = message['email']
     
-    user = User(name=name, surname=surname, goal_id=goal_id, email=email)
+    from random import randint
+    pin = randint(0000, 9999)
+    
+    #Invio il pin all'email inserita
+    
+    user = User(name=name, surname=surname, goal_id=goal_id, email=email, pin=pin)
     
     with app.app_context():
         db.session.add(user)
@@ -286,11 +326,20 @@ def delete_goal_entries():
 
 @app.route('/')
 def root():
-    return redirect(url_for('.index'))
+    return redirect(url_for('.login'))
 
 @app.route('/index')
 def index():
     return render_template('index.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    form = LoginForm(request.form)
+    if request.method == 'POST' and form.validate():
+        user = User.query.filter_by(pin = form.pin.data, email=form.mail.data).first()
+        if user is not None:
+            return render_template('checkin.html', name=user.name)
+    return render_template('login.html', form=form)
 
 if __name__ == '__main__':
     rospy.init_node('hostess_management', disable_signals=True)

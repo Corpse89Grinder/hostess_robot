@@ -48,6 +48,14 @@
 			<span class="stretch"></span>
 		</div>
 		<script>
+			document.body.addEventListener('keypress', function(event)
+			{
+		        if(event.keyCode == 13)
+		        {
+		        	document.getElementById('form').submit();
+		        }
+		    });
+			
 			if({{ form.goal.errors|length }} > 0)
 			{
 				$('#div').addClass("has-error");

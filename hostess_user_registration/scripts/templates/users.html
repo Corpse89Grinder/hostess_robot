@@ -30,6 +30,7 @@
 					        <th>Cognome</th>
 					        <th>E-Mail</th>
 							<th>Destinazione</th>
+							<th>PIN</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -44,6 +45,7 @@
 							<td>{{ user.surname }}</td>
 							<td>{{ user.email }}</td>
 							<td>{{ user.goal.label }}</td>
+							<td>{{ user.pin }}</td>
 						</tr>
 						{% endfor %}
 					</tbody>

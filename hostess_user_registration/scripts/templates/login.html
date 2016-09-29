@@ -1,0 +1,71 @@
+{% extends "bootstrap/base.html" %}
+
+{% block title %}
+	Hostess Robot
+{% endblock %}
+
+{% block styles %}
+	{{ super() }}
+	<link rel="stylesheet" href="{{ url_for('.static', filename='styles.css') }}">
+{% endblock %}
+
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% block body %}
+	{% block scripts %}
+    	<script type="text/javascript" src="{{ url_for('.static',filename='scripts.js') }}"></script>
+		{{ super() }}
+	{% endblock %}
+	<div class="container">
+		<div class="page-header">
+			<h1>Login utente</h1>
+		</div>
+		<div class="row">
+			<div class="col-md-12">
+				<form method="POST" id="form">
+					{{ form.hidden_tag() }}
+					{{ wtf.form_errors(form, hiddens="only") }}
+					{{ wtf.form_field(form.mail, autocomplete="off", placeholder=form.mail.label.text) }}
+					{{ wtf.form_field(form.pin, autocomplete="off", placeholder=form.pin.label.text) }}
+				</form>
+			</div>
+		</div>
+		<div class="page-footer">
+			<input class="btn btn-default" type="submit" value="Login" onclick="document.getElementById('form').submit();" />
+			<span class="stretch"></span>
+		</div>
+	</div>
+	<script>
+	$(document).ready(function()
+	{
+		document.body.addEventListener('keypress', function(event)
+		{
+	        if(event.keyCode == 13)
+	        {
+	        	document.getElementById('form').submit();
+	        }
+	    });
+
+		$("#pin").attr('maxlength','4');
+		$("#pin").keydown(function(event)
+		{
+			if($.inArray(event.keyCode, [9, 27, 13]) !== -1)
+			{
+				return;
+			}
+			else
+			{
+				if((event.keyCode < 48 || event.keyCode > 57) && (event.keyCode < 96 || event.keyCode > 105))
+				{
+					event.preventDefault();
+				}
+				else
+				{
+					$("#pin").val($("#pin").val().slice(1));
+				}
+			}
+		});
+	});
+	$("#pin").val("0000");
+	</script>
+{% endblock %}
