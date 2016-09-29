@@ -356,6 +356,11 @@ int main(int argc, char **argv)
 				ROS_INFO("Could not re-associate using kalman filter, returning to facial recognition re-association");
 			}
 		}
+		else if(skeleton_to_track == -2)
+		{
+			//reinizializzazione
+			detected = false;
+		}
 
 		if(detected)
 		{

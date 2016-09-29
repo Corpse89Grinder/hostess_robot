@@ -18,6 +18,7 @@ bool findClosestHeadToFace(std::vector<tf::StampedTransform>&, std::string&);
 std::string lookForSpecificBodyTransform(tf::TransformListener&, std::string, std::string, tf::StampedTransform&);
 int changeFrameAndReturnIndex(std::string&);
 void twistCallback(geometry_msgs::Twist);
+bool destinationReached();
 
 geometry_msgs::Twist newTwist;
 
@@ -37,6 +38,10 @@ int main(int argc, char** argv)
 	std::string user_to_track;
 	std::string frame_id;
 
+	ros::param::set("skeleton_to_track", skeleton_to_track);
+
+	std::string direction = "still";
+
 	PanController pan_controller(nh);
 
 	ROS_INFO("Waiting for reference frame.");
@@ -45,15 +50,6 @@ int main(int argc, char** argv)
 	{
 		ros::Duration(1).sleep();
 	}
-
-	ROS_INFO("Waiting for user identity.");
-
-    while(!ros::param::get("user_to_track", user_to_track) && nh.ok())
-    {
-    	ros::Duration(1).sleep();
-    }
-
-	user_to_track = user_to_track.substr(1, user_to_track.size());
 
     std::string topic_to_subscribe("/kobra/tracker_cmd_vel");
     nh.getParam("topic_to_subscribe", topic_to_subscribe);
@@ -69,126 +65,157 @@ int main(int argc, char** argv)
     std::deque<double> speed_to_rotate_left(MAX_MEAN, 0);
 	std::deque<double> speed_to_rotate_right(MAX_MEAN, 0);
 
-    ros::param::set("skeleton_to_track", skeleton_to_track);
+	while(nh.ok())
+	{
+		ros::param::set("destination_reached", false);
 
-	std::string direction = "still";
+		ROS_INFO("Waiting for user identity.");
 
-    while(nh.ok())
-    {
-    	ROS_INFO("Looking for %s's face.", user_to_track.c_str());
-
-    	std::string skeleton_to_track_frame;
-
-    	ros::Time reset = ros::Time::now();
-
-		while(nh.ok())							//Search continuously for a skeleton head very close to the designated user face.
+		while(!ros::param::get("user_to_track", user_to_track) && nh.ok())
 		{
-			std::vector<tf::StampedTransform> transforms;
-
-			lookForEveryHeadTransform(listener, transforms, user_to_track);
-
-			if(findClosestHeadToFace(transforms, skeleton_to_track_frame))
-			{
-				skeleton_to_track = changeFrameAndReturnIndex(skeleton_to_track_frame);
-				ros::param::set("skeleton_to_track", skeleton_to_track);
-				break;
-			}
-
-			ratio = std::max(0.0, ratio - 0.005);
-
-			ros::spinOnce();
-
-			if((ros::Time::now() - reset).sec >= 30 && !pan_controller.isHome())
-			{
-				pan_controller.goHome();
-			}
-
-			tf::Quaternion panOrientation;
-			panOrientation.setRPY(0, 0, pan_controller.getRotation());
-
-			tf::Transform panTransform;
-			panTransform.setOrigin(tf::Vector3(0, 0, 0.05));
-			panTransform.setRotation(panOrientation);
-
-			broadcaster.sendTransform(tf::StampedTransform(panTransform, ros::Time::now(), "virgil_top_link", "pan_link"));
-
-			ros::Rate(30).sleep();
+			ros::Duration(1).sleep();
 		}
 
-		ROS_INFO("User %s and skeleton %s associated. Start tracking.", user_to_track.c_str(), skeleton_to_track_frame.c_str());
+		user_to_track = user_to_track.substr(1, user_to_track.size());
 
-		while(ros::param::get("skeleton_to_track", skeleton_to_track) && nh.ok())
+		while(!destinationReached)
 		{
-			if(skeleton_to_track == 0)
-			{
-				ROS_INFO("User %s and skeleton %s association lost. Stop tracking.", user_to_track.c_str(), skeleton_to_track_frame.c_str());
-				pan_controller.standStill();
+			ROS_INFO("Looking for %s's face.", user_to_track.c_str());
 
-				break;
+			std::string skeleton_to_track_frame;
+
+			ros::Time reset = ros::Time::now();
+
+			while(nh.ok())							//Search continuously for a skeleton head very close to the designated user face.
+			{
+				std::vector<tf::StampedTransform> transforms;
+
+				lookForEveryHeadTransform(listener, transforms, user_to_track);
+
+				if(findClosestHeadToFace(transforms, skeleton_to_track_frame))
+				{
+					skeleton_to_track = changeFrameAndReturnIndex(skeleton_to_track_frame);
+					ros::param::set("skeleton_to_track", skeleton_to_track);
+					break;
+				}
+
+				ratio = std::max(0.0, ratio - 0.005);
+
+				ros::spinOnce();
+
+				if((ros::Time::now() - reset).sec >= 30 && !pan_controller.isHome())
+				{
+					pan_controller.goHome();
+				}
+
+				tf::Quaternion panOrientation;
+				panOrientation.setRPY(0, 0, pan_controller.getRotation());
+
+				tf::Transform panTransform;
+				panTransform.setOrigin(tf::Vector3(0, 0, 0.05));
+				panTransform.setRotation(panOrientation);
+
+				broadcaster.sendTransform(tf::StampedTransform(panTransform, ros::Time::now(), "virgil_top_link", "pan_link"));
+
+				ros::Rate(30).sleep();
 			}
 
-			tf::StampedTransform transform;
+			ROS_INFO("User %s and skeleton %s associated. Start tracking.", user_to_track.c_str(), skeleton_to_track_frame.c_str());
 
-			std::string returnString = lookForSpecificBodyTransform(listener, frame_id, skeleton_to_track_frame, transform);
-
-			if(returnString == "found")
+			while(ros::param::get("skeleton_to_track", skeleton_to_track) && nh.ok())
 			{
-				//Ho la distanza, in base ad essa restituisco la percentuale di velocità del robot.
-				double distance = std::sqrt(std::pow(transform.getOrigin().getX(), 2) + std::pow(transform.getOrigin().getY(), 2));
-
-				double alphaRAD = asin(transform.getOrigin().getY() / distance);
-
-				pan_controller.turn(alphaRAD, newTwist.angular.z);
-
-				if(skeleton_to_track != -1)
+				if(skeleton_to_track == 0)
 				{
-					if(distance >= 0 && distance <= 1.5)
-					{
-						ratio = 1;
-					}
-					else if(distance > 1.5)
-					{
-						ratio = std::max(1 - (distance - 1.5), 0.0);
-					}
+					ROS_INFO("User %s and skeleton %s association lost. Stop tracking.", user_to_track.c_str(), skeleton_to_track_frame.c_str());
+					pan_controller.standStill();
 
-					if(ratio < 0)
+					break;
+				}
+
+				tf::StampedTransform transform;
+
+				std::string returnString = lookForSpecificBodyTransform(listener, frame_id, skeleton_to_track_frame, transform);
+
+				if(returnString == "found")
+				{
+					//Ho la distanza, in base ad essa restituisco la percentuale di velocità del robot.
+					double distance = std::sqrt(std::pow(transform.getOrigin().getX(), 2) + std::pow(transform.getOrigin().getY(), 2));
+
+					double alphaRAD = asin(transform.getOrigin().getY() / distance);
+
+					pan_controller.turn(alphaRAD, newTwist.angular.z);
+
+					if(skeleton_to_track != -1)
 					{
-						ratio = 0;
+						if(distance >= 0 && distance <= 1.5)
+						{
+							ratio = 1;
+						}
+						else if(distance > 1.5)
+						{
+							ratio = std::max(1 - (distance - 1.5), 0.0);
+						}
+
+						if(ratio < 0)
+						{
+							ratio = 0;
+						}
+						else if(ratio > 1)
+						{
+							ratio = 1;
+						}
 					}
-					else if(ratio > 1)
+					else
 					{
-						ratio = 1;
+						ratio = std::max(0.0, ratio - 0.005);
 					}
 				}
-				else
+				else if(returnString == "not found")
 				{
 					ratio = std::max(0.0, ratio - 0.005);
+					pan_controller.standStill();
 				}
+				else if(returnString == "skip")
+				{
+					pan_controller.continueTurning();
+				}
+
+				ros::spinOnce();
+
+				tf::Quaternion panOrientation;
+				panOrientation.setRPY(0, 0, pan_controller.getRotation());
+
+				tf::Transform panTransform;
+				panTransform.setOrigin(tf::Vector3(0, 0, 0.05));
+				panTransform.setRotation(panOrientation);
+
+				broadcaster.sendTransform(tf::StampedTransform(panTransform, ros::Time::now(), "virgil_top_link", "pan_link"));
+
+				ros::Rate(30).sleep();
 			}
-			else if(returnString == "not found")
-			{
-				ratio = std::max(0.0, ratio - 0.005);
-				pan_controller.standStill();
-			}
-			else if(returnString == "skip")
-			{
-				pan_controller.continueTurning();
-			}
-
-			ros::spinOnce();
-
-			tf::Quaternion panOrientation;
-			panOrientation.setRPY(0, 0, pan_controller.getRotation());
-
-			tf::Transform panTransform;
-			panTransform.setOrigin(tf::Vector3(0, 0, 0.05));
-			panTransform.setRotation(panOrientation);
-
-			broadcaster.sendTransform(tf::StampedTransform(panTransform, ros::Time::now(), "virgil_top_link", "pan_link"));
-
-			ros::Rate(30).sleep();
 		}
-    }
+
+		//Destinazione raggiunta, faccio tornare il robot alla reception
+
+		ros::param::del("user_to_track");
+
+		ros::param::set("skeleton_to_track", -2);
+
+		pan_controller.goHome();
+
+		ratio = 1;
+
+		ros::param::set("destination_reached", false);
+
+		//Mando una ACTION verso la reception e aspetto? Chiedere a Stefano
+
+		while(!destinationReached)
+		{
+			ros::spinOnce();
+		}
+
+		ratio = 0;
+	}
 
     ros::shutdown();
 
@@ -316,4 +343,13 @@ void twistCallback(geometry_msgs::Twist oldTwist)
 	pub.publish(newTwist);
 
 	return;
+}
+
+bool destinationReached()
+{
+	bool destination_reached;
+
+	ros::param::get("destination_reached", destination_reached);
+
+	return destination_reached;
 }
