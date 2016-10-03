@@ -78,7 +78,9 @@ int main(int argc, char** argv)
 
 		user_to_track = user_to_track.substr(1, user_to_track.size());
 
-		while(!destinationReached)
+		ROS_INFO("Tracking user %s.", user_to_track.c_str());
+
+		while(!destinationReached())
 		{
 			ROS_INFO("Looking for %s's face.", user_to_track.c_str());
 
