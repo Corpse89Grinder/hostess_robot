@@ -349,10 +349,19 @@ def login():
             X = Goal.query.filter_by(id = user.goal_id).first().x
             Y = Goal.query.filter_by(id = user.goal_id).first().y
             
-            print X
-            print Y
+            goal = MoveBaseGoal()
             
-            #da mandare la action
+            goal.target_pose.pose.position.x = X
+            goal.target_pose.pose.position.y = Y
+            goal.target_pose.pose.orientation.w = 1.0
+            goal.target_pose.header.frame_id = 'map'
+            goal.target_pose.header.stamp = rospy.Time.now()
+            
+            sac = actionlib.SimpleActionClient('/move_base', MoveBaseAction)
+            
+            sac.wait_for_server()
+            
+            sac.send_goal(goal)
             
             return render_template('checkin.html', name=user.name)
     return render_template('login.html', form=form)

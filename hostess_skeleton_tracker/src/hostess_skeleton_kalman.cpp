@@ -360,6 +360,7 @@ int main(int argc, char **argv)
 		{
 			//reinizializzazione
 			detected = false;
+			ros::param::set("skeleton_to_track", 0);
 		}
 
 		if(detected)

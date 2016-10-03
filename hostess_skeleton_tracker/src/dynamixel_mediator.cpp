@@ -4,6 +4,7 @@
 #include <sstream>
 #include <limits>
 #include <geometry_msgs/Twist.h>
+#include <actionlib_msgs/GoalStatusArray.h>
 #include "pan_controller.hpp"
 
 //Maximum distance from skeleton head and face recognition points in space
@@ -18,7 +19,8 @@ bool findClosestHeadToFace(std::vector<tf::StampedTransform>&, std::string&);
 std::string lookForSpecificBodyTransform(tf::TransformListener&, std::string, std::string, tf::StampedTransform&);
 int changeFrameAndReturnIndex(std::string&);
 void twistCallback(geometry_msgs::Twist);
-bool destinationReached();
+void goalCallback(actionlib_msgs::GoalStatusArray);
+void resetLoop(PanController&);
 
 geometry_msgs::Twist newTwist;
 
@@ -26,6 +28,7 @@ std::map<std::string, std::pair<ros::Time, int> > skeletons;
 std::map<std::string, ros::Time> last_stamp;
 
 double ratio;
+int goal_status = 0;
 int skeleton_to_track = 0;
 
 ros::Publisher pub;
@@ -59,6 +62,8 @@ int main(int argc, char** argv)
     ros::Subscriber twistSubscriber = nh.subscribe(topic_to_subscribe, 1, twistCallback);
     pub = nh.advertise<geometry_msgs::Twist>(topic_to_advertise, 1);
 
+    ros::Subscriber goalSubscriber = nh.subscribe("/move_base/status", 1, goalCallback);
+
     tf::TransformListener listener;
     tf::TransformBroadcaster broadcaster;
 
@@ -67,9 +72,7 @@ int main(int argc, char** argv)
 
 	while(nh.ok())
 	{
-		ros::param::set("destination_reached", false);
-
-		ROS_INFO("Waiting for user identity.");
+		ROS_INFO("Waiting for user identity and goal.");
 
 		while(!ros::param::get("user_to_track", user_to_track) && nh.ok())
 		{
@@ -78,13 +81,14 @@ int main(int argc, char** argv)
 
 		user_to_track = user_to_track.substr(1, user_to_track.size());
 
-		while(!destinationReached())
+		while(goal_status != 3 && nh.ok())
 		{
 			ROS_INFO("Looking for %s's face.", user_to_track.c_str());
 
 			std::string skeleton_to_track_frame;
 
 			ros::Time reset = ros::Time::now();
+			ros::Time abort = ros::Time::now();
 
 			while(nh.ok())							//Search continuously for a skeleton head very close to the designated user face.
 			{
@@ -106,6 +110,11 @@ int main(int argc, char** argv)
 				if((ros::Time::now() - reset).sec >= 30 && !pan_controller.isHome())
 				{
 					pan_controller.goHome();
+				}
+
+				if((ros::Time::now() - abort).sec >= 120)
+				{
+					resetLoop(pan_controller);
 				}
 
 				tf::Quaternion panOrientation;
@@ -195,26 +204,10 @@ int main(int argc, char** argv)
 			}
 		}
 
+		ROS_INFO("Goal reached correctly! Reverting camera.");
+
+		resetLoop(pan_controller);
 		//Destinazione raggiunta, faccio tornare il robot alla reception
-
-		ros::param::del("user_to_track");
-
-		ros::param::set("skeleton_to_track", -2);
-
-		pan_controller.goHome();
-
-		ratio = 1;
-
-		ros::param::set("destination_reached", false);
-
-		//Mando una ACTION verso la reception e aspetto? Chiedere a Stefano
-
-		while(!destinationReached)
-		{
-			ros::spinOnce();
-		}
-
-		ratio = 0;
 	}
 
     ros::shutdown();
@@ -345,11 +338,25 @@ void twistCallback(geometry_msgs::Twist oldTwist)
 	return;
 }
 
-bool destinationReached()
+void goalCallback(actionlib_msgs::GoalStatusArray goals)
 {
-	bool destination_reached;
+	if(!goals.status_list.empty())
+	{
+		goal_status = goals.status_list[goals.status_list.size() - 1].status;
+	}
+}
 
-	ros::param::get("destination_reached", destination_reached);
+void resetLoop(PanController& pan_controller)
+{
+	ros::param::del("user_to_track");
 
-	return destination_reached;
+	ros::param::set("skeleton_to_track", -2);
+
+	pan_controller.goHome();
+
+	ratio = 1;
+
+	//mando il robot alla posizione iniziale
+
+	ratio = 0;
 }
