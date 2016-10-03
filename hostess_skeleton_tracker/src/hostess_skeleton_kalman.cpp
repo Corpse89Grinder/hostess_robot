@@ -601,8 +601,6 @@ bool calcUserTransforms(XnUserID const& user, tf::Transform& torso_local, tf::Tr
 
 		if(torso_position.fConfidence < 1 && head_position.fConfidence < 1)
 		{
-			ROS_WARN("Occhio!");
-
 			return false;
 		}
 	}
