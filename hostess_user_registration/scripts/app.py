@@ -12,6 +12,7 @@ from sqlalchemy.sql.schema import UniqueConstraint
 from flask_socketio import emit, disconnect, SocketIO
 import json, roslib, rospy, actionlib, yaml, os
 from cob_people_detection.msg import addDataAction, addDataGoal, deleteDataAction, deleteDataGoal, loadModelAction, loadModelGoal
+from move_base_msgs.msg import * 
 from collections import namedtuple
 
 f = open(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'config/map.yaml'))
@@ -338,6 +339,21 @@ def login():
     if request.method == 'POST' and form.validate():
         user = User.query.filter_by(pin = form.pin.data, email=form.mail.data).first()
         if user is not None:
+            
+            id = user.id
+            id_string = '00000000' + str(id)
+            id_string = id_string[-8:]
+            id_string = '_' + id_string
+            rospy.set_param('user_to_track', id_string)
+            
+            X = Goal.query.filter_by(id = user.goal_id).first().x
+            Y = Goal.query.filter_by(id = user.goal_id).first().y
+            
+            print X
+            print Y
+            
+            #da mandare la action
+            
             return render_template('checkin.html', name=user.name)
     return render_template('login.html', form=form)
 
