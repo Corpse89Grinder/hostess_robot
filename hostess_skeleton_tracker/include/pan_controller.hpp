@@ -4,6 +4,8 @@
 #include <ros/ros.h>
 #include <pluginlib/class_loader.h>
 #include <cyton_wrapper/dynamixelIO_wrapper_base.h>
+#include <tf/transform_broadcaster.h>
+#include <boost/thread.hpp>
 
 class PanController
 {
@@ -19,21 +21,20 @@ class PanController
 
 		double extremeLeft, extremeRight;
 
-		bool homed = false;
-
 		double turningSpeed, lambda, targetPosition;
+
+		void turnRight(double);
+		void turnLeft(double);
+		void broadcastRotation();
 
 	public:
 		PanController(ros::NodeHandle&);
 		~PanController();
-		void goHome();
 		bool isHome();
+		void goHome();
 		void standStill();
 		void turn(double, double);
-		void turnRight(double);
-		void turnLeft(double);
 		void continueTurning();
-		double getRotation();
 };
 
 #endif /* PAN_CONTROLLER_HPP_ */

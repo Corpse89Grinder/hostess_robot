@@ -37,18 +37,26 @@ PanController::PanController(ros::NodeHandle& nh): private_nh_("~")
 	}
 
 	extremeRight = (dxio->getMinAngle(0) - 2048) * 0.0015339804;	//Estrema destra del motore
-	extremeLeft = (dxio->getMaxAngle(0) - 2048) * 0.0015339804;	//Estrema sinistra del motore
+	extremeLeft = (dxio->getMaxAngle(0) - 2048) * 0.0015339804;		//Estrema sinistra del motore
 
 	turningSpeed = 0;
 
 	lambda = 0.98;
 
+	boost::thread t(&PanController::broadcastRotation, this);
+	t.detach();
+
+	turnLeft(MAX_SPEED);
+
+	ros::Duration(2).sleep();
+
+	turnRight(MAX_SPEED);
+
+	ros::Duration(4).sleep();
+
 	goHome();
 
-	while(!isHome())
-	{
-
-	}
+	ros::Duration(2).sleep();
 
 	return;
 }
@@ -69,27 +77,33 @@ PanController::~PanController()
 
 void PanController::goHome()
 {
-	std::vector<std::vector<double> > v;
-	std::vector<double> pv;
+	if(!isHome())
+	{
+		std::vector<std::vector<double> > v;
+		std::vector<double> pv;
 
-	pv.clear();
-	pv.push_back(0.0);
-	pv.push_back(MAX_SPEED);
-	v.push_back(pv);
+		pv.clear();
+		pv.push_back(0.0);
+		pv.push_back(MAX_SPEED);
+		v.push_back(pv);
 
-	dxio->setMultiPosVel(v);
+		dxio->setMultiPosVel(v);
+	}
+
+	return;
 }
 
 bool PanController::isHome()
 {
-	if(getRotation() <= 0.01 && getRotation() >= -0.01)
+	double presentPosition;
+	dxio->getPresentPosition(0, presentPosition);
+
+	if(presentPosition <= 0.01 && presentPosition >= -0.01)
 	{
 		return true;
 	}
-	else
-	{
-		return false;
-	}
+
+	return false;
 }
 
 void PanController::standStill()
@@ -191,11 +205,24 @@ void PanController::turnRight(double speed)
 	return;
 }
 
-double PanController::getRotation()
+void PanController::broadcastRotation()
 {
-	double presentPosition;
+	tf::TransformBroadcaster broadcaster;
 
-	dxio->getPresentPosition(0, presentPosition);
+	while(private_nh_.ok())
+	{
+		double presentPosition;
+		dxio->getPresentPosition(0, presentPosition);
 
-	return presentPosition;
+		tf::Quaternion panOrientation;
+		panOrientation.setRPY(0, 0, presentPosition);
+
+		tf::Transform panTransform;
+		panTransform.setOrigin(tf::Vector3(0, 0, 0.05));
+		panTransform.setRotation(panOrientation);
+
+		broadcaster.sendTransform(tf::StampedTransform(panTransform, ros::Time::now(), "virgil_top_link", "pan_link"));
+	}
+
+	return;
 }

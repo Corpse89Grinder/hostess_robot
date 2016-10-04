@@ -4,6 +4,7 @@
 #include <sstream>
 #include <limits>
 #include <geometry_msgs/Twist.h>
+#include <actionlib_msgs/GoalID.h>
 #include <actionlib_msgs/GoalStatusArray.h>
 #include "pan_controller.hpp"
 
@@ -20,20 +21,20 @@ std::string lookForSpecificBodyTransform(tf::TransformListener&, std::string, st
 int changeFrameAndReturnIndex(std::string&);
 void twistCallback(geometry_msgs::Twist);
 void goalCallback(actionlib_msgs::GoalStatusArray);
-void resetLoop(PanController&);
+void resetLoop();
 
 geometry_msgs::Twist newTwist;
 
 std::map<std::string, std::pair<ros::Time, int> > skeletons;
 std::map<std::string, ros::Time> last_stamp;
-std::map<std::string, std::pair<ros::Time, int> > goals_reached;
+std::map<std::string, std::pair<ros::Time, int> > goals_status;
 
 double ratio;
 int skeleton_to_track = 0;
 
 std::string current_goal_id = "";
 
-ros::Publisher pub;
+ros::Publisher pub, cancel;
 
 int main(int argc, char** argv)
 {
@@ -56,15 +57,17 @@ int main(int argc, char** argv)
 		ros::Duration(1).sleep();
 	}
 
-    std::string topic_to_subscribe("/kobra/tracker_cmd_vel");
+	std::string topic_to_subscribe("/kobra/tracker_cmd_vel");
     nh.getParam("topic_to_subscribe", topic_to_subscribe);
     std::string topic_to_advertise("/kobra/cmd_vel");
-	nh.getParam("topic_to_advertise", topic_to_advertise);
+    nh.getParam("topic_to_advertise", topic_to_advertise);
 
-    ros::Subscriber twistSubscriber = nh.subscribe(topic_to_subscribe, 1, twistCallback);
+	ros::Subscriber twistSubscriber = nh.subscribe(topic_to_subscribe, 1, twistCallback);
     pub = nh.advertise<geometry_msgs::Twist>(topic_to_advertise, 1);
 
     ros::Subscriber goalSubscriber = nh.subscribe("/move_base/status", 1, goalCallback);
+
+    cancel = nh.advertise<actionlib_msgs::GoalID>("/move_base/cancel", 1);
 
     tf::TransformListener listener;
     tf::TransformBroadcaster broadcaster;
@@ -89,12 +92,13 @@ int main(int argc, char** argv)
 
 		while(current_goal_id == "")
 		{
+			ros::spinOnce();
 			ros::Duration(1).sleep();
 		}
 
 		ROS_INFO("Goal received.");
 
-		while(goals_reached[current_goal_id].second != 3 && nh.ok())
+		while(goals_status[current_goal_id].second != 3 && nh.ok())
 		{
 			ROS_INFO("Looking for %s's face.", user_to_track.c_str());
 
@@ -102,6 +106,8 @@ int main(int argc, char** argv)
 
 			ros::Time reset = ros::Time::now();
 			ros::Time abort = ros::Time::now();
+
+			bool restart = false;
 
 			while(nh.ok())							//Search continuously for a skeleton head very close to the designated user face.
 			{
@@ -122,24 +128,25 @@ int main(int argc, char** argv)
 
 				if((ros::Time::now() - reset).sec >= 30 && !pan_controller.isHome())
 				{
+					ROS_INFO("Resetting camera orientation.");
 					pan_controller.goHome();
 				}
 
 				if((ros::Time::now() - abort).sec >= 120)
 				{
-					resetLoop(pan_controller);
+					ROS_INFO("Timout exceeded, restarting.");
+
+					restart = true;
+
+					break;
 				}
 
-				tf::Quaternion panOrientation;
-				panOrientation.setRPY(0, 0, pan_controller.getRotation());
-
-				tf::Transform panTransform;
-				panTransform.setOrigin(tf::Vector3(0, 0, 0.05));
-				panTransform.setRotation(panOrientation);
-
-				broadcaster.sendTransform(tf::StampedTransform(panTransform, ros::Time::now(), "virgil_top_link", "pan_link"));
-
 				ros::Rate(30).sleep();
+			}
+
+			if(restart)
+			{
+				break;
 			}
 
 			ROS_INFO("User %s and skeleton %s associated. Start tracking.", user_to_track.c_str(), skeleton_to_track_frame.c_str());
@@ -204,22 +211,18 @@ int main(int argc, char** argv)
 
 				ros::spinOnce();
 
-				tf::Quaternion panOrientation;
-				panOrientation.setRPY(0, 0, pan_controller.getRotation());
-
-				tf::Transform panTransform;
-				panTransform.setOrigin(tf::Vector3(0, 0, 0.05));
-				panTransform.setRotation(panOrientation);
-
-				broadcaster.sendTransform(tf::StampedTransform(panTransform, ros::Time::now(), "virgil_top_link", "pan_link"));
-
 				ros::Rate(30).sleep();
 			}
 		}
 
-		ROS_INFO("Goal reached correctly! Reverting.");
+		if(goals_status[current_goal_id].second == 3)
+		{
+			ROS_INFO("Goal reached correctly, restarting.");
+		}
 
-		resetLoop(pan_controller);
+		pan_controller.goHome();
+
+		resetLoop();
 		//Destinazione raggiunta, faccio tornare il robot alla reception
 	}
 
@@ -355,28 +358,37 @@ void goalCallback(actionlib_msgs::GoalStatusArray goals)
 {
 	for(int i = 0; i < goals.status_list.size(); i++)
 	{
-		if(goals_reached.count(goals.status_list[i].goal_id.id) == 0)
+		if(goals_status.count(goals.status_list[i].goal_id.id) == 0)
 		{
 			//new goal received
 			current_goal_id = goals.status_list[i].goal_id.id;
 
-			goals_reached[current_goal_id].first = goals.status_list[i].goal_id.stamp;
-			goals_reached[current_goal_id].second = goals.status_list[i].status;
+			goals_status[current_goal_id].first = goals.status_list[i].goal_id.stamp;
+			goals_status[current_goal_id].second = goals.status_list[i].status;
+
+			ROS_INFO("Current goal: %s", current_goal_id.c_str());
 		}
 		else
 		{
-			goals_reached[goals.status_list[i].goal_id.id].second = goals.status_list[i].status;
+			goals_status[goals.status_list[i].goal_id.id].second = goals.status_list[i].status;
 		}
 	}
 }
 
-void resetLoop(PanController& pan_controller)
+void resetLoop()
 {
+	ROS_INFO("Reverting loop.");
+
 	ros::param::del("user_to_track");
 
 	ros::param::set("skeleton_to_track", -2);
 
-	pan_controller.goHome();
+	actionlib_msgs::GoalID msg;
+
+	msg.id = current_goal_id;
+	msg.stamp = goals_status[current_goal_id].first;
+
+	cancel.publish(msg);
 
 	current_goal_id = "";
 
