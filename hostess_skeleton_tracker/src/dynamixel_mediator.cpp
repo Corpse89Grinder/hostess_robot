@@ -26,10 +26,12 @@ geometry_msgs::Twist newTwist;
 
 std::map<std::string, std::pair<ros::Time, int> > skeletons;
 std::map<std::string, ros::Time> last_stamp;
+std::map<std::string, std::pair<ros::Time, int> > goals_reached;
 
 double ratio;
-int goal_status = 0;
 int skeleton_to_track = 0;
+
+std::string current_goal_id = "";
 
 ros::Publisher pub;
 
@@ -72,7 +74,7 @@ int main(int argc, char** argv)
 
 	while(nh.ok())
 	{
-		ROS_INFO("Waiting for user identity and goal.");
+		ROS_INFO("Waiting for user identity.");
 
 		while(!ros::param::get("user_to_track", user_to_track) && nh.ok())
 		{
@@ -81,7 +83,18 @@ int main(int argc, char** argv)
 
 		user_to_track = user_to_track.substr(1, user_to_track.size());
 
-		while(goal_status != 3 && nh.ok())
+		ROS_INFO("User identity received.");
+
+		ROS_INFO("Waiting for goal.");
+
+		while(current_goal_id == "")
+		{
+			ros::Duration(1).sleep();
+		}
+
+		ROS_INFO("Goal received.");
+
+		while(goals_reached[current_goal_id].second != 3 && nh.ok())
 		{
 			ROS_INFO("Looking for %s's face.", user_to_track.c_str());
 
@@ -204,7 +217,7 @@ int main(int argc, char** argv)
 			}
 		}
 
-		ROS_INFO("Goal reached correctly! Reverting camera.");
+		ROS_INFO("Goal reached correctly! Reverting.");
 
 		resetLoop(pan_controller);
 		//Destinazione raggiunta, faccio tornare il robot alla reception
@@ -340,9 +353,20 @@ void twistCallback(geometry_msgs::Twist oldTwist)
 
 void goalCallback(actionlib_msgs::GoalStatusArray goals)
 {
-	if(!goals.status_list.empty())
+	for(int i = 0; i < goals.status_list.size(); i++)
 	{
-		goal_status = goals.status_list[goals.status_list.size() - 1].status;
+		if(goals_reached.count(goals.status_list[i].goal_id.id) == 0)
+		{
+			//new goal received
+			current_goal_id = goals.status_list[i].goal_id.id;
+
+			goals_reached[current_goal_id].first = goals.status_list[i].goal_id.stamp;
+			goals_reached[current_goal_id].second = goals.status_list[i].status;
+		}
+		else
+		{
+			goals_reached[goals.status_list[i].goal_id.id].second = goals.status_list[i].status;
+		}
 	}
 }
 
@@ -353,6 +377,8 @@ void resetLoop(PanController& pan_controller)
 	ros::param::set("skeleton_to_track", -2);
 
 	pan_controller.goHome();
+
+	current_goal_id = "";
 
 	ratio = 1;
 
