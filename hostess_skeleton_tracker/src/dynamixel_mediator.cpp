@@ -6,6 +6,7 @@
 #include <geometry_msgs/Twist.h>
 #include <actionlib_msgs/GoalID.h>
 #include <actionlib_msgs/GoalStatusArray.h>
+#include <std_msgs/String.h>
 #include "pan_controller.hpp"
 
 //Maximum distance from skeleton head and face recognition points in space
@@ -28,13 +29,16 @@ geometry_msgs::Twist newTwist;
 std::map<std::string, std::pair<ros::Time, int> > skeletons;
 std::map<std::string, ros::Time> last_stamp;
 std::map<std::string, std::pair<ros::Time, int> > goals_status;
+std::map<std::string, int> users_log;
+
+std::vector<double> association_distances;
 
 double ratio;
 int skeleton_to_track = 0;
 
 std::string current_goal_id = "";
 
-ros::Publisher pub, cancel;
+ros::Publisher pub, cancel, logger;
 
 int main(int argc, char** argv)
 {
@@ -68,6 +72,7 @@ int main(int argc, char** argv)
     ros::Subscriber goalSubscriber = nh.subscribe("/move_base/status", 1, goalCallback);
 
     cancel = nh.advertise<actionlib_msgs::GoalID>("/move_base/cancel", 1);
+    logger = nh.advertise<std_msgs::String>("logger", 10);
 
     tf::TransformListener listener;
     tf::TransformBroadcaster broadcaster;
@@ -97,6 +102,23 @@ int main(int argc, char** argv)
 		}
 
 		ROS_INFO("Goal received.");
+
+		std_msgs::String msg;
+
+		//Log identity, goal id and time
+		msg.data = "start";
+		logger.publish(msg);
+
+		msg.data = user_to_track;
+		logger.publish(msg);
+
+		msg.data = current_goal_id;
+		logger.publish(msg);
+
+		msg.data = goals_status[current_goal_id].first.sec + "." + goals_status[current_goal_id].first.nsec;
+		logger.publish(msg);
+
+		association_distances.clear();
 
 		while(goals_status[current_goal_id].second != 3 && nh.ok())
 		{
@@ -135,7 +157,6 @@ int main(int argc, char** argv)
 				if((ros::Time::now() - abort).sec >= 120)
 				{
 					ROS_INFO("Timout exceeded, restarting.");
-
 					restart = true;
 
 					break;
@@ -146,6 +167,8 @@ int main(int argc, char** argv)
 
 			if(restart)
 			{
+				resetLoop();
+
 				break;
 			}
 
@@ -218,12 +241,28 @@ int main(int argc, char** argv)
 		if(goals_status[current_goal_id].second == 3)
 		{
 			ROS_INFO("Goal reached correctly, restarting.");
+
+			msg.data = "Association distances:";
+			logger.publish(msg);
+
+			std::ostringstream sstream;
+
+			for(int i = 0; i < association_distances.size(); i++)
+			{
+				sstream << association_distances[i];
+				msg.data = sstream.str();
+				logger.publish(msg);
+			}
+
+			resetLoop();
+
+			msg.data = "succeeded";
+			logger.publish(msg);
 		}
 
 		pan_controller.goHome();
 
-		resetLoop();
-		//Destinazione raggiunta, faccio tornare il robot alla reception
+		//Mando il robot alla posizione iniziale
 	}
 
     ros::shutdown();
@@ -296,6 +335,8 @@ bool findClosestHeadToFace(std::vector<tf::StampedTransform>& transforms, std::s
 		{
 			skeleton_to_track_frame = frame_to_track;
 			skeletons.clear();
+
+			association_distances.push_back(min);
 			return true;
 		}
 	}
@@ -392,9 +433,5 @@ void resetLoop()
 
 	current_goal_id = "";
 
-	ratio = 1;
-
-	//mando il robot alla posizione iniziale
-
-	ratio = 0;
+	ros::Duration(5).sleep();
 }

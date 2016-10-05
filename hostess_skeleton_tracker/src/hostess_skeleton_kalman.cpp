@@ -11,6 +11,9 @@
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/video/tracking.hpp>
+#include <vector>
+#include <std_msgs/String.h>
+#include <string>
 
 #define MAX_USERS 15
 #define DISTANCE_THRESHOLD 1
@@ -86,6 +89,10 @@ bool isTracking = false;
 
 ros::Time lastStamp;
 
+std::vector<std::pair<double, double> > reassociations;
+
+ros::Publisher logger;
+
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "hostess_skeleton_tracker");
@@ -96,6 +103,8 @@ int main(int argc, char **argv)
 
 	std::string configFilename = ros::package::getPath("hostess_skeleton_tracker") + "/init/openni_tracker.xml";
     genericUserCalibrationFileName = ros::package::getPath("hostess_skeleton_tracker") + "/init/GenericUserCalibration.bin";
+
+    logger = nh.advertise<std_msgs::String>("logger", 10);
 
     XnStatus nRetVal;
 
@@ -361,6 +370,35 @@ int main(int argc, char **argv)
 			//reinizializzazione
 			detected = false;
 			ros::param::set("skeleton_to_track", 0);
+
+			std::ostringstream sstream;
+			std_msgs::String msg;
+
+			msg.data = "Reassociation distances:";
+
+			logger.publish(msg);
+
+			for(int i = 0; i < reassociations.size(); i++)
+			{
+				sstream << reassociations[i].first;
+				msg.data = sstream.str();
+				sstream.clear();
+				logger.publish(msg);
+			}
+
+			msg.data = "Reassociation correlations:";
+
+			logger.publish(msg);
+
+			for(int i = 0; i < reassociations.size(); i++)
+			{
+				sstream << reassociations[i].first;
+				msg.data = sstream.str();
+				sstream.clear();
+				logger.publish(msg);
+			}
+
+			reassociations.clear();
 		}
 
 		if(detected)

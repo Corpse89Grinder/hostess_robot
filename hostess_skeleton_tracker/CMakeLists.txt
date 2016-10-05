@@ -98,3 +98,6 @@ add_library(pan_controller
 
 add_executable(dynamixel_mediator src/dynamixel_mediator.cpp)
 target_link_libraries(dynamixel_mediator pan_controller ${catkin_LIBRARIES})
+
+add_executable(logger src/logger.cpp)
+target_link_libraries(logger ${catkin_LIBRARIES})
