@@ -222,6 +222,8 @@ void PanController::broadcastRotation()
 		panTransform.setRotation(panOrientation);
 
 		broadcaster.sendTransform(tf::StampedTransform(panTransform, ros::Time::now(), "virgil_top_link", "pan_link"));
+
+		ros::Rate(30).sleep();
 	}
 
 	return;
