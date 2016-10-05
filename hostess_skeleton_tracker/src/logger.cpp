@@ -40,7 +40,7 @@ void loggerCallback(const std_msgs::String::ConstPtr& msg)
 
 		for(int i = 0; i < lines.size(); i++)
 		{
-			stream << lines[i];
+			stream << lines[i] << std::endl;
 		}
 
 		stream.close();

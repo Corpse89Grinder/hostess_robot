@@ -8,5 +8,6 @@
                 	<param name="UpdateRate" type="int" value="20"/>
                 	<param name="YamlPath" type="string" value="$(find hostess_skeleton_tracker)/launch/include/pan_joint.yaml"/>
         	</node>
+		<node pkg="hostess_skeleton_tracker" name="logger" type="logger" output="screen" />
 	</group>
 </launch>

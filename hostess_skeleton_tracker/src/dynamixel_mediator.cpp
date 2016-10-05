@@ -115,7 +115,10 @@ int main(int argc, char** argv)
 		msg.data = current_goal_id;
 		logger.publish(msg);
 
-		msg.data = goals_status[current_goal_id].first.sec + "." + goals_status[current_goal_id].first.nsec;
+		std::ostringstream sstream;
+
+		sstream << goals_status[current_goal_id].first.sec << "." << goals_status[current_goal_id].first.nsec;
+		msg.data = sstream.str();
 		logger.publish(msg);
 
 		association_distances.clear();
@@ -245,10 +248,10 @@ int main(int argc, char** argv)
 			msg.data = "Association distances:";
 			logger.publish(msg);
 
-			std::ostringstream sstream;
-
 			for(int i = 0; i < association_distances.size(); i++)
 			{
+				sstream.clear();
+				sstream.str(std::string());
 				sstream << association_distances[i];
 				msg.data = sstream.str();
 				logger.publish(msg);
@@ -264,6 +267,8 @@ int main(int argc, char** argv)
 
 		//Mando il robot alla posizione iniziale
 	}
+
+	ROS_INFO("Shutting down.");
 
     ros::shutdown();
 

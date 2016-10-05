@@ -383,6 +383,7 @@ int main(int argc, char **argv)
 				sstream << reassociations[i].first;
 				msg.data = sstream.str();
 				sstream.clear();
+				sstream.str(std::string());
 				logger.publish(msg);
 			}
 
@@ -395,6 +396,7 @@ int main(int argc, char **argv)
 				sstream << reassociations[i].first;
 				msg.data = sstream.str();
 				sstream.clear();
+				sstream.str(std::string());
 				logger.publish(msg);
 			}
 
