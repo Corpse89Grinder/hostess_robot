@@ -43,6 +43,8 @@ void loggerCallback(const std_msgs::String::ConstPtr& msg)
 			stream << lines[i] << std::endl;
 		}
 
+		stream << std::endl;
+
 		stream.close();
 
 		current_filename = "";

@@ -288,7 +288,7 @@ int main(int argc, char **argv)
 					publishUserTransforms(skeleton_to_track, torso_local, torso_global, head_local, head_global, now);
 
 					//---------------------------------------------------------------------------
-
+/*
 					cv::Mat innovation = (kf2.measurementMatrix * kf2.errorCovPre * kf2.measurementMatrix.t()) + kf2.measurementNoiseCov;
 					cv::Mat error(2, 2, CV_32F);
 
@@ -303,11 +303,11 @@ int main(int argc, char **argv)
 					mu.at<float>(0) = fabs(torso_global.getOrigin().getX() - state.at<float>(0));
 					mu.at<float>(1) = fabs(torso_global.getOrigin().getY() - state.at<float>(1));
 
-					double distance = ((mu.t() * error * mu).operator cv::Mat().at<float>(0)) / 9;
-
+					//double distance = ((mu.t() * error * mu).operator cv::Mat().at<float>(0)) / 9;
+*/
 					//---------------------------------------------------------------------------
 
-					//double distance = std::sqrt(std::pow(torso_global.getOrigin().getX() - state.at<float>(0), 2) + std::pow(torso_global.getOrigin().getY() - state.at<float>(1), 2));
+					double distance = std::sqrt(std::pow(torso_global.getOrigin().getX() - state.at<float>(0), 2) + std::pow(torso_global.getOrigin().getY() - state.at<float>(1), 2));
 
 					if(distance < distances[user])
 					{
@@ -341,12 +341,14 @@ int main(int argc, char **argv)
 				skeleton_to_track = closer;
 				ros::param::set("skeleton_to_track", skeleton_to_track);
 
+				ROS_INFO("Re-associating user to skeleton %d, distance: %f, correlation: %f.", skeleton_to_track, distances[closer], maxCorrelation);
+
+				reassociations.push_back(std::pair<double, double>(distances[closer], maxCorrelation));
+
 				for(int i = 1; i <= MAX_USERS; ++i)
 				{
 					distances[i] = std::numeric_limits<double>::max();
 				}
-
-				ROS_INFO("Re-associating user to skeleton %d, distance: %f, correlation: %f.", skeleton_to_track, distances[closer], maxCorrelation);
 
 				continue;
 			}
@@ -393,11 +395,16 @@ int main(int argc, char **argv)
 
 			for(int i = 0; i < reassociations.size(); i++)
 			{
-				sstream << reassociations[i].first;
+				sstream << reassociations[i].second;
 				msg.data = sstream.str();
 				sstream.clear();
 				sstream.str(std::string());
 				logger.publish(msg);
+			}
+
+			for(int i = 1; i <= MAX_USERS; ++i)
+			{
+				distances[i] = std::numeric_limits<double>::max();
 			}
 
 			reassociations.clear();

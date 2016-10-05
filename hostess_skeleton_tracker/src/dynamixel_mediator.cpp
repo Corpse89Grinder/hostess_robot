@@ -153,11 +153,10 @@ int main(int argc, char** argv)
 
 				if((ros::Time::now() - reset).sec >= 30 && !pan_controller.isHome())
 				{
-					ROS_INFO("Resetting camera orientation.");
 					pan_controller.goHome();
 				}
 
-				if((ros::Time::now() - abort).sec >= 120)
+				if((ros::Time::now() - abort).sec >= 60)
 				{
 					ROS_INFO("Timout exceeded, restarting.");
 					restart = true;
