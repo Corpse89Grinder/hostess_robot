@@ -276,6 +276,7 @@ int main(int argc, char **argv)
 
 			int closer = 0;
 			double maxCorrelation = 0;
+			tf::Transform torso_new;
 
 			for(int i = 0; i < users_count; ++i)
 			{
@@ -330,6 +331,8 @@ int main(int argc, char **argv)
 								maxCorrelation = currentCorrelation;
 
 								closer = user;
+
+								torso_new = torso_global;
 							}
 						}
 					}
@@ -349,6 +352,14 @@ int main(int argc, char **argv)
 				{
 					distances[i] = std::numeric_limits<double>::max();
 				}
+
+				detected = false;
+
+				kalmanUpdate(torso_new);
+
+				predictAndPublish();
+
+				ros::Rate(30).sleep();
 
 				continue;
 			}
