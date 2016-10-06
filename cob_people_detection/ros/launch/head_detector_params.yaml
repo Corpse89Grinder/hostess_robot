@@ -16,11 +16,11 @@ depth_drop_groups: 40    #40
 
 # width of smallest search rectangle (default: 20)
 # int
-depth_min_search_scale_x: 30
+depth_min_search_scale_x: 20
 
 # height of smallest search rectangle (default: 20)
 # int
-depth_min_search_scale_y: 30
+depth_min_search_scale_y: 20
 
 # display timing information
 # bool

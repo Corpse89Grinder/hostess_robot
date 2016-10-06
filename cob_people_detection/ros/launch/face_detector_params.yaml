@@ -33,7 +33,7 @@ face_size_min_m: 0.1
 
 # maximum distance [m] of detected faces to the sensor
 # double
-max_face_z_m: 8.0
+max_face_z_m: 3.0
 
 # enables some debug outputs
 # bool

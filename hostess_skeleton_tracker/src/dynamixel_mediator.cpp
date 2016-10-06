@@ -11,7 +11,7 @@
 
 //Maximum distance from skeleton head and face recognition points in space
 #define DISTANCE_THRESHOLD 0.1
-#define MINIMUM_ASSOCIATIONS_FOR_TRACKING 5
+#define MINIMUM_ASSOCIATIONS_FOR_TRACKING 2
 #define MAX_MEAN 5
 
 #define PI 3.14159265358979323846
@@ -320,7 +320,7 @@ bool findClosestHeadToFace(std::vector<tf::StampedTransform>& transforms, std::s
 
 	for(auto iterator = skeletons.begin(); iterator != skeletons.end();)
 	{
-		if((now - iterator->second.first).nsec >= 5e8)				//More than half a second passed from the previous finding, I delete the entry
+		if((now - iterator->second.first).sec >= 1)					//More than half a second passed from the previous finding, I delete the entry
 		{
 			iterator = skeletons.erase(iterator);
 		}
