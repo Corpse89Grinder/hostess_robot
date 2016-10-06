@@ -229,7 +229,7 @@ def start_calibration():
     client = actionlib.SimpleActionClient('/cob_people_detection/face_capture/add_data_server', addDataAction)
     
     if client.wait_for_server(timeout=rospy.Duration(10)):
-        goal = addDataGoal(label=id_string, capture_mode=1, continuous_mode_images_to_capture=200, continuous_mode_delay=0.03)
+        goal = addDataGoal(label=id_string, capture_mode=1, continuous_mode_images_to_capture=25, continuous_mode_delay=0.03)
         client.send_goal(goal, done_cb, active_cb, feedback_cb)
     else:
         emit('failed')
