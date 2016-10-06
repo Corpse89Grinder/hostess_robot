@@ -11,7 +11,7 @@
 
 //Maximum distance from skeleton head and face recognition points in space
 #define DISTANCE_THRESHOLD 0.1
-#define MINIMUM_ASSOCIATIONS_FOR_TRACKING 1
+#define MINIMUM_ASSOCIATIONS_FOR_TRACKING 5
 #define MAX_MEAN 5
 
 #define PI 3.14159265358979323846
@@ -178,9 +178,6 @@ int main(int argc, char** argv)
 
 			while(ros::param::get("skeleton_to_track", skeleton_to_track) && goals_status[current_goal_id].second != 3 && nh.ok())
 			{
-				//ultima cosa stampata
-				ROS_INFO("3");
-
 				if(skeleton_to_track == 0)
 				{
 					ROS_INFO("User %s and skeleton %s association lost. Stop tracking.", user_to_track.c_str(), skeleton_to_track_frame.c_str());
@@ -192,8 +189,6 @@ int main(int argc, char** argv)
 				tf::StampedTransform transform;
 
 				std::string returnString = lookForSpecificBodyTransform(listener, frame_id, skeleton_to_track_frame, transform);
-
-				ROS_INFO("%s", returnString.c_str());
 
 				if(returnString == "found")
 				{
