@@ -12,7 +12,7 @@
 //Maximum distance from skeleton head and face recognition points in space
 #define DISTANCE_THRESHOLD 0.1
 #define MINIMUM_ASSOCIATIONS_FOR_TRACKING 2
-#define MAX_MEAN 5
+#define MAX_MEAN 10
 
 #define PI 3.14159265358979323846
 
@@ -438,7 +438,7 @@ void resetLoop()
 {
 	ROS_INFO("Reverting loop.");
 
-	for(int i = 0; i < MAX_MEAN; i++)
+	for(int i = 0; i < speed.size(); i++)
 	{
 		speed[i] = 0;
 	}
