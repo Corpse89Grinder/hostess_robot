@@ -178,105 +178,65 @@ int main(int argc, char** argv)
 
 			while(ros::param::get("skeleton_to_track", skeleton_to_track) && goals_status[current_goal_id].second != 3 && nh.ok())
 			{
-				ROS_INFO("1");
-
 				if(skeleton_to_track == 0)
 				{
-					ROS_INFO("2");
-
 					ROS_INFO("User %s and skeleton %s association lost. Stop tracking.", user_to_track.c_str(), skeleton_to_track_frame.c_str());
 					pan_controller.standStill();
 
-					ROS_INFO("3");
-
 					break;
 				}
-
-				ROS_INFO("4");
 
 				tf::StampedTransform transform;
 
 				std::string returnString = lookForSpecificBodyTransform(listener, frame_id, skeleton_to_track_frame, transform);
 
-				ROS_INFO("5");
-
 				if(returnString == "found")
 				{
-					ROS_INFO("6");
-
 					//Ho la distanza, in base ad essa restituisco la percentuale di velocità del robot.
 					double distance = std::sqrt(std::pow(transform.getOrigin().getX(), 2) + std::pow(transform.getOrigin().getY(), 2));
 
 					double alphaRAD = asin(transform.getOrigin().getY() / distance);
 
-					ROS_INFO("7");
-
 					pan_controller.turn(alphaRAD, newTwist.angular.z);
-
-					ROS_INFO("8");
 
 					if(skeleton_to_track != -1)
 					{
-						ROS_INFO("9");
-
 						if(distance >= 0 && distance <= 1.5)
 						{
 							ratio = 1;
-
-							ROS_INFO("10");
 						}
 						else if(distance > 1.5)
 						{
 							ratio = std::max(1 - (distance - 1.5), 0.0);
-
-							ROS_INFO("11");
 						}
 
 						if(ratio < 0)
 						{
 							ratio = 0;
-
-							ROS_INFO("12");
 						}
 						else if(ratio > 1)
 						{
 							ratio = 1;
-
-							ROS_INFO("13");
 						}
 					}
 					else
 					{
-						ROS_INFO("14");
-
 						ratio = std::max(0.0, ratio - 0.005);
 					}
 				}
 				else if(returnString == "not found")
 				{
-					ROS_INFO("15");
-
 					ratio = std::max(0.0, ratio - 0.005);
 					pan_controller.standStill();
-
-					ROS_INFO("16");
 				}
 				else if(returnString == "skip")
 				{
-					ROS_INFO("17");
-
 					pan_controller.continueTurning();
-
-					ROS_INFO("18");
 				}
-
-				ROS_INFO("19");
 
 				ros::spinOnce();
 
 				ros::Rate(30).sleep();
-
-				ROS_INFO("20");
 			}
 		}
 

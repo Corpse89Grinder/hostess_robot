@@ -21,7 +21,7 @@ class PanController
 
 		double extremeLeft, extremeRight;
 
-		double turningSpeed, lambda, targetPosition;
+		double turningSpeed, lambda, targetPosition, presentPosition;
 
 		void turnRight(double);
 		void turnLeft(double);

@@ -95,9 +95,6 @@ void PanController::goHome()
 
 bool PanController::isHome()
 {
-	double presentPosition;
-	dxio->getPresentPosition(0, presentPosition);
-
 	if(presentPosition <= 0.01 && presentPosition >= -0.01)
 	{
 		return true;
@@ -110,10 +107,6 @@ void PanController::standStill()
 {
 	std::vector<std::vector<double> > v;
 	std::vector<double> pv;
-
-	double presentPosition;
-
-	dxio->getPresentPosition(0, presentPosition);
 
 	turningSpeed = 0.0;
 
@@ -129,10 +122,6 @@ void PanController::standStill()
 
 void PanController::turn(double angle, double robotRotation)
 {
-	double presentPosition;
-
-	dxio->getPresentPosition(0, presentPosition);
-
 	std::vector<std::vector<double> > v;
 	std::vector<double> pv;
 
@@ -152,10 +141,6 @@ void PanController::turn(double angle, double robotRotation)
 
 void PanController::continueTurning()
 {
-	double presentPosition;
-
-	dxio->getPresentPosition(0, presentPosition);
-
 	if(presentPosition >= targetPosition - 0.01 && presentPosition >= targetPosition + 0.01)
 	{
 		return;
@@ -211,7 +196,6 @@ void PanController::broadcastRotation()
 
 	while(private_nh_.ok())
 	{
-		double presentPosition;
 		dxio->getPresentPosition(0, presentPosition);
 
 		tf::Quaternion panOrientation;
