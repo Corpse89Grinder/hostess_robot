@@ -16,6 +16,8 @@ class PanController
 
 		boost::shared_ptr<dynamixelIO_wrapper_base::DynamixelIO_Base> dxio;
 
+		boost::mutex mutex;
+
 		int mDeviceIndex, mBaudnum, mUpdateRate;
 		std::string mYamlPath;
 

@@ -95,7 +95,11 @@ void PanController::goHome()
 
 bool PanController::isHome()
 {
-	if(presentPosition <= 0.01 && presentPosition >= -0.01)
+	mutex.lock();
+	double currentPosition = presentPosition;
+	mutex.unlock();
+
+	if(currentPosition <= 0.01 && currentPosition >= -0.01)
 	{
 		return true;
 	}
@@ -111,7 +115,9 @@ void PanController::standStill()
 	turningSpeed = 0.0;
 
 	pv.clear();
+	mutex.lock();
 	pv.push_back(presentPosition);
+	mutex.unlock();
 	pv.push_back(turningSpeed);
 	v.push_back(pv);
 
@@ -127,7 +133,9 @@ void PanController::turn(double angle, double robotRotation)
 
 	double deltaAngle = angle - robotRotation;
 
+	mutex.lock();
 	targetPosition = presentPosition + deltaAngle;
+	mutex.unlock();
 
 	turningSpeed = ((1 - lambda) * turningSpeed) + (lambda * fabs((2.2 * angle) - robotRotation));
 
@@ -141,7 +149,11 @@ void PanController::turn(double angle, double robotRotation)
 
 void PanController::continueTurning()
 {
-	if(presentPosition >= targetPosition - 0.01 && presentPosition >= targetPosition + 0.01)
+	mutex.lock();
+	double currentPosition = presentPosition;
+	mutex.unlock();
+
+	if(currentPosition >= targetPosition - 0.01 && currentPosition >= targetPosition + 0.01)
 	{
 		return;
 	}
@@ -196,10 +208,12 @@ void PanController::broadcastRotation()
 
 	while(private_nh_.ok())
 	{
+		mutex.lock();
 		dxio->getPresentPosition(0, presentPosition);
 
 		tf::Quaternion panOrientation;
 		panOrientation.setRPY(0, 0, presentPosition);
+		mutex.unlock();
 
 		tf::Transform panTransform;
 		panTransform.setOrigin(tf::Vector3(0, 0, 0.05));
