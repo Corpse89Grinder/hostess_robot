@@ -464,6 +464,8 @@ void resetLoop()
 {
 	ROS_INFO("Reverting loop.");
 
+	ratio = 0;
+
 	ros::param::del("user_to_track");
 
 	ros::param::set("skeleton_to_track", -2);
