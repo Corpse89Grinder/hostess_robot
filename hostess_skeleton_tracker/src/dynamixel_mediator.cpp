@@ -33,12 +33,13 @@ std::map<std::string, int> users_log;
 
 std::vector<double> association_distances;
 
-double ratio;
 int skeleton_to_track = 0;
 
 std::string current_goal_id = "";
 
 ros::Publisher pub, cancel, logger;
+
+std::deque<double> speed(MAX_MEAN, 0);
 
 int main(int argc, char** argv)
 {
@@ -77,8 +78,7 @@ int main(int argc, char** argv)
     tf::TransformListener listener;
     tf::TransformBroadcaster broadcaster;
 
-    std::deque<double> speed_to_rotate_left(MAX_MEAN, 0);
-	std::deque<double> speed_to_rotate_right(MAX_MEAN, 0);
+    double ratio = 0;
 
 	while(nh.ok())
 	{
@@ -148,6 +148,8 @@ int main(int argc, char** argv)
 				}
 
 				ratio = std::max(0.0, ratio - 0.005);
+				speed.pop_front();
+				speed.push_back(ratio);
 
 				ros::spinOnce();
 
@@ -223,10 +225,15 @@ int main(int argc, char** argv)
 					{
 						ratio = std::max(0.0, ratio - 0.005);
 					}
+
+					speed.pop_front();
+					speed.push_back(ratio);
 				}
 				else if(returnString == "not found")
 				{
 					ratio = std::max(0.0, ratio - 0.005);
+					speed.pop_front();
+					speed.push_back(ratio);
 					pan_controller.standStill();
 				}
 				else if(returnString == "skip")
@@ -391,6 +398,13 @@ int changeFrameAndReturnIndex(std::string& frame)
 
 void twistCallback(geometry_msgs::Twist oldTwist)
 {
+	double ratio = 0;
+
+	for(int i = 0; i < speed.size(); i++)
+	{
+		ratio += speed[i] / MAX_MEAN;
+	}
+
 	newTwist.linear.x = oldTwist.linear.x * ratio;
 	newTwist.angular.z = oldTwist.angular.z * ratio;
 
@@ -424,7 +438,10 @@ void resetLoop()
 {
 	ROS_INFO("Reverting loop.");
 
-	ratio = 0;
+	for(int i = 0; i < MAX_MEAN; i++)
+	{
+		speed[i] = 0;
+	}
 
 	ros::param::del("user_to_track");
 

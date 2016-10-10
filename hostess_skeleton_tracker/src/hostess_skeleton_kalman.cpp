@@ -18,7 +18,7 @@
 #define MAX_USERS 15
 #define DISTANCE_THRESHOLD 1
 #define LIKENESS_THRESHOLD 0.75
-#define KALMAN_TIMEOUT 5
+#define KALMAN_TIMEOUT 8
 //#define FOCUS_RATIO 1.1547005383792515291871035014902
 
 std::string genericUserCalibrationFileName;
