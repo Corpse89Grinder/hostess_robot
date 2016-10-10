@@ -286,7 +286,7 @@ int main(int argc, char **argv)
 
 				if(calcUserTransforms(user, torso_local, torso_global, head_local, head_global))
 				{
-					publishUserTransforms(skeleton_to_track, torso_local, torso_global, head_local, head_global, now);
+					publishUserTransforms(user, torso_local, torso_global, head_local, head_global, now);
 
 					//---------------------------------------------------------------------------
 /*
