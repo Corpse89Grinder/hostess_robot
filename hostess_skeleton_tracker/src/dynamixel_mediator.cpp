@@ -199,8 +199,6 @@ int main(int argc, char** argv)
 
 					double alphaRAD = asin(transform.getOrigin().getY() / distance);
 
-					pan_controller.turn(alphaRAD, newTwist.angular.z);
-
 					if(skeleton_to_track != -1)
 					{
 						if(distance >= 0 && distance <= 1.5)
@@ -228,6 +226,10 @@ int main(int argc, char** argv)
 
 					speed.pop_front();
 					speed.push_back(ratio);
+
+					ros::spinOnce();
+
+					pan_controller.turn(alphaRAD, newTwist.angular.z);
 				}
 				else if(returnString == "not found")
 				{
@@ -235,13 +237,15 @@ int main(int argc, char** argv)
 					speed.pop_front();
 					speed.push_back(ratio);
 					pan_controller.standStill();
+
+					ros::spinOnce();
 				}
 				else if(returnString == "skip")
 				{
 					pan_controller.continueTurning();
-				}
 
-				ros::spinOnce();
+					ros::spinOnce();
+				}
 
 				ros::Rate(30).sleep();
 			}
