@@ -440,7 +440,8 @@ void resetLoop()
 
 	for(int i = 0; i < speed.size(); i++)
 	{
-		speed[i] = 0;
+		speed.pop_front();
+		speed.push_back(0);
 	}
 
 	ros::param::del("user_to_track");
