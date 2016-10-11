@@ -35,6 +35,8 @@ xn::ImageGenerator		g_ImageGenerator;
 
 std::map<int, double> distances;
 
+std::map<int, image_transport::Publisher> image_publishers;
+
 cv::Mat HSVImage;
 
 void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator&, XnUserID, void*);
@@ -54,7 +56,7 @@ void publishUserTransforms(int, tf::Transform, tf::Transform, tf::Transform, tf:
 void publishAllTransforms();
 
 void updateHSVImage(const sensor_msgs::ImageConstPtr&);
-void calcUserHistogram(int, cv::Mat&, bool);
+void calcUserHistogram(int, cv::Mat&, bool, image_transport::ImageTransport&);
 double histogramComparison(cv::Mat);
 
 bool checkCenterOfMass(XnUserID const&);
@@ -240,11 +242,11 @@ int main(int argc, char **argv)
 
 				if(!detected)
 				{
-					calcUserHistogram(skeleton_to_track, userHistogram, false);
+					calcUserHistogram(skeleton_to_track, userHistogram, false, it);
 				}
 				else
 				{
-					calcUserHistogram(skeleton_to_track, userHistogram, true);
+					calcUserHistogram(skeleton_to_track, userHistogram, true, it);
 				}
 
 				kalmanUpdate(torso_global);
@@ -320,7 +322,7 @@ int main(int argc, char **argv)
 						{
 							cv::Mat histogram;
 
-							calcUserHistogram(user, histogram, false);
+							calcUserHistogram(user, histogram, false, it);
 
 							double currentCorrelation = histogramComparison(histogram);
 
@@ -747,7 +749,7 @@ void updateHSVImage(const sensor_msgs::ImageConstPtr& msg)
 	}
 }
 
-void calcUserHistogram(int user, cv::Mat& histogram, bool accumulate)
+void calcUserHistogram(int user, cv::Mat& histogram, bool accumulate, image_transport::ImageTransport& it)
 {
 	xn::SceneMetaData smd;
 	xn::DepthMetaData dmd;
@@ -758,7 +760,6 @@ void calcUserHistogram(int user, cv::Mat& histogram, bool accumulate)
 	const XnLabel* pLabels = smd.Data();
 
 	cv::Mat maskImage = cv::Mat(dmd.FullYRes(), dmd.FullXRes(), CV_8UC1);
-	cv::Mat maskedImage;
 
 	for(XnUInt y = 0; y < dmd.YRes(); ++y)
 	{
@@ -777,6 +778,26 @@ void calcUserHistogram(int user, cv::Mat& histogram, bool accumulate)
 
 	cv::calcHist(&HSVImage, 1, channels, maskImage, histogram, 2, histSize, histRange, true, accumulate);
 	cv::normalize(histogram, histogram, 0, 1, cv::NORM_MINMAX, -1, cv::Mat());
+
+	cv::Mat maskedImage;
+	HSVImage.copyTo(maskedImage, maskImage);
+	cv::cvtColor(maskedImage, maskedImage, cv::COLOR_HSV2BGR);
+	cv::bitwise_not(maskImage, maskImage);
+	cv::Mat white(maskedImage.rows, maskedImage.cols, maskedImage.type(), cv::Scalar(255, 255, 255));
+	white.copyTo(maskedImage, maskImage);
+
+	if(image_publishers.count(user) == 0)
+	{
+		std::stringstream topic_string;
+		topic_string << "histograms/user_" << user;
+
+		image_publishers[user] = it.advertise(topic_string.str(), 1);
+	}
+
+	sensor_msgs::ImagePtr msg;
+	msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", maskedImage).toImageMsg();
+
+	image_publishers[user].publish(msg);
 }
 
 double histogramComparison(cv::Mat histogram)
