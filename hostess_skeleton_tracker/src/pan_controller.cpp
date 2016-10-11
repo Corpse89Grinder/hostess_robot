@@ -4,6 +4,7 @@
 
 PanController::PanController(ros::NodeHandle& nh): private_nh_("~")
 {
+	root_nh = &nh;
 	private_nh_.param("DeviceIndex", mDeviceIndex, 1);
 	private_nh_.param("Baudnum", mBaudnum, 34);
 	private_nh_.param("UpdateRate", mUpdateRate, 20);
@@ -206,7 +207,7 @@ void PanController::broadcastRotation()
 {
 	tf::TransformBroadcaster broadcaster;
 
-	while(private_nh_.ok())
+	while(root_nh->ok())
 	{
 		mutex.lock();
 		dxio->getPresentPosition(0, presentPosition);

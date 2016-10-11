@@ -11,6 +11,7 @@ class PanController
 {
 	private:
 		ros::NodeHandle private_nh_;
+		ros::NodeHandle* root_nh;
 
 		boost::shared_ptr<pluginlib::ClassLoader<dynamixelIO_wrapper_base::DynamixelIO_Base> > dxio_loader;
 
