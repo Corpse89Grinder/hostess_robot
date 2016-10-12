@@ -267,6 +267,8 @@ int main(int argc, char** argv)
 				logger.publish(msg);
 			}
 
+			ratio = 0;
+
 			resetLoop();
 
 			msg.data = "succeeded";

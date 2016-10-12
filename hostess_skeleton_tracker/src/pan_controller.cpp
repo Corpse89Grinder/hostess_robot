@@ -44,9 +44,14 @@ PanController::PanController(ros::NodeHandle& nh): private_nh_("~")
 
 	lambda = 0.98;
 
+	initialized = false;
+
+	boost::thread t(&PanController::broadcastRotation, this);
+	t.detach();
+
 	turnLeft(MAX_SPEED);
 
-	ros::Duration(2).sleep();
+	ros::Duration(4).sleep();
 
 	turnRight(MAX_SPEED);
 
@@ -56,10 +61,9 @@ PanController::PanController(ros::NodeHandle& nh): private_nh_("~")
 
 	ros::Duration(2).sleep();
 
-	dxio->getPresentPosition(0, presentPosition);
-
-	boost::thread t(&PanController::broadcastRotation, this);
-	t.detach();
+	init.lock();
+	initialized = true;
+	init.unlock();
 
 	return;
 }
@@ -209,6 +213,9 @@ void PanController::broadcastRotation()
 {
 	tf::TransformBroadcaster broadcaster;
 
+	bool flag = false;
+	int count = 0;
+
 	while(root_nh->ok())
 	{
 		double currentPosition, newPosition;
@@ -216,17 +223,47 @@ void PanController::broadcastRotation()
 
 		dxio->getPresentPosition(0, currentPosition);
 
-		if(std::abs(currentPosition - newPosition) <= 0.05)
-		{
-			newPosition= currentPosition;
-		}
-
 		tf::Quaternion panOrientation;
-		panOrientation.setRPY(0, 0, newPosition);
 
-		mutex.lock();
-		presentPosition = newPosition;
-		mutex.unlock();
+		if(flag == false)
+		{
+			init.lock();
+			flag = initialized;
+			init.unlock();
+
+			mutex.lock();
+			presentPosition = currentPosition;
+			mutex.unlock();
+
+			panOrientation.setRPY(0, 0, currentPosition);
+		}
+		else
+		{
+			if(count < 30)
+			{
+				if(std::abs(currentPosition - newPosition) <= 0.05)
+				{
+					newPosition = currentPosition;
+					count = 0;
+				}
+				else
+				{
+					count++;
+					//ROS_WARN("%f", std::abs(currentPosition - newPosition));
+				}
+			}
+			else
+			{
+				newPosition = currentPosition;
+				count = 0;
+			}
+
+			panOrientation.setRPY(0, 0, newPosition);
+
+			mutex.lock();
+			presentPosition = newPosition;
+			mutex.unlock();
+		}
 
 		tf::Transform panTransform;
 		panTransform.setOrigin(tf::Vector3(0, 0, 0.05));

@@ -6,6 +6,30 @@
 #include <cyton_wrapper/dynamixelIO_wrapper_base.h>
 #include <tf/transform_broadcaster.h>
 #include <boost/thread.hpp>
+#include <boost/atomic.hpp>
+
+class spinlock
+{
+	private:
+		typedef enum {Locked, Unlocked} LockState;
+		boost::atomic<LockState> state_;
+
+	public:
+		spinlock() : state_(Unlocked) {}
+
+		void lock()
+		{
+			while (state_.exchange(Locked, boost::memory_order_acquire) == Locked)
+			{
+				/* busy-wait */
+			}
+		}
+
+		void unlock()
+		{
+			state_.store(Unlocked, boost::memory_order_release);
+		}
+};
 
 class PanController
 {
@@ -17,7 +41,7 @@ class PanController
 
 		boost::shared_ptr<dynamixelIO_wrapper_base::DynamixelIO_Base> dxio;
 
-		boost::mutex mutex;
+		spinlock mutex, init;
 
 		int mDeviceIndex, mBaudnum, mUpdateRate;
 		std::string mYamlPath;
@@ -25,6 +49,8 @@ class PanController
 		double extremeLeft, extremeRight;
 
 		double turningSpeed, lambda, targetPosition, presentPosition;
+
+		bool initialized;
 
 		void turnRight(double);
 		void turnLeft(double);
