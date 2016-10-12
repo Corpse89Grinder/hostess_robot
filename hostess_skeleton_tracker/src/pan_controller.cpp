@@ -209,11 +209,21 @@ void PanController::broadcastRotation()
 
 	while(root_nh->ok())
 	{
-		mutex.lock();
-		dxio->getPresentPosition(0, presentPosition);
+		double currentPosition, newPosition;
+		newPosition = presentPosition;
+
+		dxio->getPresentPosition(0, currentPosition);
+
+		if(std::abs(currentPosition - newPosition) <= 0.05)
+		{
+			newPosition= currentPosition;
+		}
 
 		tf::Quaternion panOrientation;
-		panOrientation.setRPY(0, 0, presentPosition);
+		panOrientation.setRPY(0, 0, newPosition);
+
+		mutex.lock();
+		presentPosition = newPosition;
 		mutex.unlock();
 
 		tf::Transform panTransform;

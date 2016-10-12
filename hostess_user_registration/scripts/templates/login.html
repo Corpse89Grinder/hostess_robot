@@ -26,7 +26,7 @@
 					{{ form.hidden_tag() }}
 					{{ wtf.form_errors(form, hiddens="only") }}
 					{{ wtf.form_field(form.mail, autocomplete="off", placeholder=form.mail.label.text) }}
-					{{ wtf.form_field(form.pin, autocomplete="off", placeholder=form.pin.label.text) }}
+					{{ wtf.form_field(form.pin, autocomplete="off" }}
 				</form>
 			</div>
 		</div>
@@ -47,6 +47,7 @@
 	    });
 
 		$("#pin").attr('maxlength','4');
+		$("#pin").val("0000");
 		$("#pin").keydown(function(event)
 		{
 			if($.inArray(event.keyCode, [9, 27, 13]) !== -1)
