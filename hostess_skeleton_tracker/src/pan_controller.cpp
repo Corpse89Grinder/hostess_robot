@@ -44,9 +44,6 @@ PanController::PanController(ros::NodeHandle& nh): private_nh_("~")
 
 	lambda = 0.98;
 
-	boost::thread t(&PanController::broadcastRotation, this);
-	t.detach();
-
 	turnLeft(MAX_SPEED);
 
 	ros::Duration(2).sleep();
@@ -58,6 +55,11 @@ PanController::PanController(ros::NodeHandle& nh): private_nh_("~")
 	goHome();
 
 	ros::Duration(2).sleep();
+
+	dxio->getPresentPosition(0, presentPosition);
+
+	boost::thread t(&PanController::broadcastRotation, this);
+	t.detach();
 
 	return;
 }
