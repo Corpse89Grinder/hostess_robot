@@ -18,8 +18,7 @@
 #define MAX_USERS 15
 #define DISTANCE_THRESHOLD 1
 #define LIKENESS_THRESHOLD 0.75
-#define KALMAN_TIMEOUT 8
-//#define FOCUS_RATIO 1.1547005383792515291871035014902
+#define KALMAN_TIMEOUT 5
 
 std::string genericUserCalibrationFileName;
 
@@ -97,44 +96,44 @@ ros::Publisher logger;
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "hostess_skeleton_tracker");
-    ros::NodeHandle nh;
+	ros::init(argc, argv, "hostess_skeleton_tracker");
+	ros::NodeHandle nh;
 
-    image_transport::ImageTransport it(nh);
+	image_transport::ImageTransport it(nh);
 	image_transport::Subscriber sub = it.subscribe("/camera/rgb/image_raw", 1, updateHSVImage);
 
 	std::string configFilename = ros::package::getPath("hostess_skeleton_tracker") + "/init/openni_tracker.xml";
-    genericUserCalibrationFileName = ros::package::getPath("hostess_skeleton_tracker") + "/init/GenericUserCalibration.bin";
+	genericUserCalibrationFileName = ros::package::getPath("hostess_skeleton_tracker") + "/init/GenericUserCalibration.bin";
 
-    logger = nh.advertise<std_msgs::String>("logger", 10);
+	logger = nh.advertise<std_msgs::String>("logger", 10);
 
-    XnStatus nRetVal;
+	XnStatus nRetVal;
 
-    while(nh.ok())
-    {
-    	nRetVal = g_Context.InitFromXmlFile(configFilename.c_str());
+	while(nh.ok())
+	{
+    		nRetVal = g_Context.InitFromXmlFile(configFilename.c_str());
 
-    	if(nRetVal != XN_STATUS_OK)
-    	{
-    		ROS_INFO("InitFromXml failed: %s Retrying in 3 seconds...", xnGetStatusString(nRetVal));
-    		ros::Duration(3).sleep();
-    	}
-    	else
-    	{
-    		break;
-    	}
-    }
+    		if(nRetVal != XN_STATUS_OK)
+		{
+			ROS_INFO("InitFromXml failed: %s Retrying in 3 seconds...", xnGetStatusString(nRetVal));
+			ros::Duration(3).sleep();
+		}
+		else
+		{
+			break;
+		}
+	}
 
-    nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_DEPTH, g_DepthGenerator);
+	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_DEPTH, g_DepthGenerator);
 
-    if(nRetVal != XN_STATUS_OK)
+	if(nRetVal != XN_STATUS_OK)
 	{
 		ROS_ERROR("Find depth generator failed: %s", xnGetStatusString(nRetVal));
 	}
 
-    frame_id = "camera_depth_frame";
+	frame_id = "camera_depth_frame";
 
-    nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_IMAGE, g_ImageGenerator);
+	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_IMAGE, g_ImageGenerator);
 
 	if(nRetVal != XN_STATUS_OK)
 	{
@@ -172,11 +171,11 @@ int main(int argc, char **argv)
 	{
 		nRetVal = g_UserGenerator.Create(g_Context);
 
-	    if (nRetVal != XN_STATUS_OK)
-	    {
-		    ROS_ERROR("NITE is likely missing: Please install NITE >= 1.5.2.21. Check the readme for download information. Error Info: User generator failed: %s", xnGetStatusString(nRetVal));
-            return nRetVal;
-	    }
+		if (nRetVal != XN_STATUS_OK)
+		{
+			 ROS_ERROR("NITE is likely missing: Please install NITE >= 1.5.2.21. Check the readme for download information. Error Info: User generator failed: %s", xnGetStatusString(nRetVal));
+			return nRetVal;
+		}
 	}
 
 	if (!g_UserGenerator.IsCapabilitySupported(XN_CAPABILITY_SKELETON))
@@ -187,9 +186,9 @@ int main(int argc, char **argv)
 
 	g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_UPPER);
 
-    XnCallbackHandle hUserCallbacks;
-    g_UserGenerator.RegisterUserCallbacks(User_NewUser, User_LostUser, NULL, hUserCallbacks);
-    g_UserGenerator.RegisterToUserExit(User_OutOfScene, NULL, hUserCallbacks);
+	XnCallbackHandle hUserCallbacks;
+	g_UserGenerator.RegisterUserCallbacks(User_NewUser, User_LostUser, NULL, hUserCallbacks);
+	g_UserGenerator.RegisterToUserExit(User_OutOfScene, NULL, hUserCallbacks);
 	g_UserGenerator.RegisterToUserReEnter(User_BackIntoScene, NULL, hUserCallbacks);
 
 	nRetVal = g_Context.StartGeneratingAll();
@@ -199,8 +198,8 @@ int main(int argc, char **argv)
 		ROS_ERROR("StartGenerating failed: %s", xnGetStatusString(nRetVal));
 	}
 
-    nh.getParam("camera_frame_id", frame_id);
-    nh.getParam("parent_frame_id", parent_frame_id);
+	nh.getParam("camera_frame_id", frame_id);
+	nh.getParam("parent_frame_id", parent_frame_id);
 
 	static tf::TransformListener listener;
 	static tf::TransformBroadcaster br;
@@ -233,6 +232,8 @@ int main(int argc, char **argv)
 		else if(skeleton_to_track > 0)
 		{
 			//Tracking phase. I have my user to track, i need to apply the Kalman filter to its torso.
+
+			publishAllTransforms();
 
 			tf::Transform torso_local, torso_global, head_local, head_global;
 
@@ -289,26 +290,6 @@ int main(int argc, char **argv)
 				if(calcUserTransforms(user, torso_local, torso_global, head_local, head_global))
 				{
 					publishUserTransforms(user, torso_local, torso_global, head_local, head_global, now);
-
-					//---------------------------------------------------------------------------
-/*
-					cv::Mat innovation = (kf2.measurementMatrix * kf2.errorCovPre * kf2.measurementMatrix.t()) + kf2.measurementNoiseCov;
-					cv::Mat error(2, 2, CV_32F);
-
-					error.at<float>(0, 0) = innovation.at<float>(0, 0);
-					error.at<float>(0, 1) = innovation.at<float>(0, 1);
-					error.at<float>(1, 0) = innovation.at<float>(1, 0);
-					error.at<float>(1, 1) = innovation.at<float>(1, 1);
-
-					error = error.inv();
-
-					cv::Mat mu(2, 1, CV_32F);
-					mu.at<float>(0) = fabs(torso_global.getOrigin().getX() - state.at<float>(0));
-					mu.at<float>(1) = fabs(torso_global.getOrigin().getY() - state.at<float>(1));
-
-					//double distance = ((mu.t() * error * mu).operator cv::Mat().at<float>(0)) / 9;
-*/
-					//---------------------------------------------------------------------------
 
 					double distance = std::sqrt(std::pow(torso_global.getOrigin().getX() - state.at<float>(0), 2) + std::pow(torso_global.getOrigin().getY() - state.at<float>(1), 2));
 
@@ -613,18 +594,18 @@ void publishUserTransforms(int user, tf::Transform torso_local, tf::Transform to
 
 void publishAllTransforms()
 {
-    XnUInt16 users_count = MAX_USERS;
-    XnUserID users[MAX_USERS];
+	XnUInt16 users_count = MAX_USERS;
+	XnUserID users[MAX_USERS];
 
-    g_UserGenerator.GetUsers(users, users_count);
+	g_UserGenerator.GetUsers(users, users_count);
 
-    ros::Time now = ros::Time::now();
+	ros::Time now = ros::Time::now();
 
-    for(int i = 0; i < users_count; ++i)
-    {
-        XnUserID user = users[i];
+	for(int i = 0; i < users_count; ++i)
+	{
+		XnUserID user = users[i];
 
-        tf::Transform torso_local, torso_global, head_local, head_global;
+		tf::Transform torso_local, torso_global, head_local, head_global;
 
 		if(calcUserTransforms(user, torso_local, torso_global, head_local, head_global))
 		{
@@ -639,9 +620,9 @@ bool checkCenterOfMass(XnUserID const& user)
 	XnStatus status = g_UserGenerator.GetCoM(user, center_of_mass);
 
 	if(status != XN_STATUS_OK || center_of_mass.X == 0 || center_of_mass.Y == 0 || center_of_mass.Z == 0)
-    {
+	{
 		return false;
-    }
+	}
 	else
 	{
 		return true;
