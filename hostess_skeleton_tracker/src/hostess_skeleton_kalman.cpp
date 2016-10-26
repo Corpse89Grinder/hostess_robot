@@ -15,41 +15,38 @@
 #include <std_msgs/String.h>
 #include <string>
 
-#define MAX_USERS 15
-#define DISTANCE_THRESHOLD 1
-#define LIKENESS_THRESHOLD 0.75
-#define KALMAN_TIMEOUT 5
+#define MAX_USERS 15							//Grandezza massima del vettore che contiene gli utenti, definito così da OpenNI
+#define DISTANCE_THRESHOLD 1					//Raggio massimo in cui cerco un nuovo scheletro nel caso di riassociazione rapida con Kalman
+#define LIKENESS_THRESHOLD 0.75					//Soglia minima di correlazione per riassociazione rapida
+#define KALMAN_TIMEOUT 5						//Tempo massimo per riassociazione rapida con Kalman e correlazione
 
-std::string genericUserCalibrationFileName;
+std::string frame_id;							//Il frame TF relativo alla camera, viene letto mediante parametro
+std::string parent_frame_id("map");				//Il frame TF base dello spazio in cui opera il robot
+int skeleton_to_track = 0;						//skeleton_to_track rappresenta l'ID dello scheletro dell'utente che sto trackando, viene utilizzato come rosparam per sincronizzarsi con il nodo mediatore di velocità e gestore della camera
 
-std::string frame_id;
-std::string parent_frame_id("map");
-int skeleton_to_track = 0;
-
+//---------------------Variabili e callback OpenNI e NiTE---------------------------
 xn::Context				g_Context;
 xn::DepthGenerator		g_DepthGenerator;
 xn::UserGenerator		g_UserGenerator;
 xn::SceneAnalyzer		g_SceneAnalyzer;
 xn::ImageGenerator		g_ImageGenerator;
 
-std::map<int, double> distances;
-
-std::map<int, image_transport::Publisher> image_publishers;
-
-cv::Mat HSVImage;
-
 void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator&, XnUserID, void*);
 void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator&, XnUserID, void*);
 void XN_CALLBACK_TYPE User_OutOfScene(xn::UserGenerator&, XnUserID, void*);
 void XN_CALLBACK_TYPE User_BackIntoScene(xn::UserGenerator&, XnUserID, void*);
 
-XnUInt32 calibrationData;
+std::string genericUserCalibrationFileName;		//Stringa per il file della calibrazione generica dello scheletro, serve per saltare la posa di avvio del tracking
+XnUInt32 calibrationData;						//Calibrazione dello scheletro, caricata una sola volta in runtime in memoria, poi riutilizzata per gli altri utenti
+//-----------------------------------------------------------------------------------------
 
-void kalmanInitialization();
-void predictAndPublish();
-void kalmanPrediction();
-void kalmanUpdate(tf::Transform);
+std::map<int, double> distances;								//Hash table utilizzata per tenere traccia delle distanze dei vari scheletri dalla stima del filtro di Kalman durante la fase di riassociazione rapida
 
+std::map<int, image_transport::Publisher> image_publishers;		//Hash table contenente i publisher delle immagini delle sagome degli utenti nel campo di vista della camera
+
+cv::Mat HSVImage;												//Immagine OpenCV della camera RGB, continuamente aggiornata e convertita nel profilo HSV per effettuare la correlazione dell'istogramma
+
+//------------------------------Funzioni per il calcolo e la pubblicazione delle coordinate con TF-----------------------------
 bool calcUserTransforms(XnUserID const&, tf::Transform&, tf::Transform&, tf::Transform&, tf::Transform&);
 void publishUserTransforms(int, tf::Transform, tf::Transform, tf::Transform, tf::Transform, ros::Time);
 void publishAllTransforms();
@@ -60,14 +57,12 @@ double histogramComparison(cv::Mat);
 
 bool checkCenterOfMass(XnUserID const&);
 
-bool updateParent();
-
 cv::Mat userHistogram;
 
 tf::StampedTransform parentTransform;
+bool updateParent();
 
-//--------------Kalman Filter-----------------
-
+//--------------Inizializzazione e metodi filtro di Kalman-----------------
 const int stateSize = 6;
 const int measSize = 3;
 const int contrSize = 0;
@@ -80,10 +75,15 @@ cv::Mat meas(measSize, 1, CV_32F);
 
 cv::Point oldPosition;
 
-//--------------------------------------------
-
 double ticks = 0;
 double dT;
+
+void kalmanInitialization();
+void predictAndPublish();
+void kalmanPrediction();
+void kalmanUpdate(tf::Transform);
+//-------------------------------------------------------------------------
+
 int notFoundCount = 0;
 bool detected = false;
 bool isTracking = false;
@@ -96,6 +96,7 @@ ros::Publisher logger;
 
 int main(int argc, char **argv)
 {
+	//-------------------------------------Inizializzazione ROS--------------------------------------------
 	ros::init(argc, argv, "hostess_skeleton_tracker");
 	ros::NodeHandle nh;
 
@@ -106,7 +107,9 @@ int main(int argc, char **argv)
 	genericUserCalibrationFileName = ros::package::getPath("hostess_skeleton_tracker") + "/init/GenericUserCalibration.bin";
 
 	logger = nh.advertise<std_msgs::String>("logger", 10);
+	//-----------------------------------------------------------------------------------------------------
 
+	//--------------------------------Inizializzazione OpenNI e NiTE---------------------------------------
 	XnStatus nRetVal;
 
 	while(nh.ok())
@@ -198,66 +201,67 @@ int main(int argc, char **argv)
 		ROS_ERROR("StartGenerating failed: %s", xnGetStatusString(nRetVal));
 	}
 
-	nh.getParam("camera_frame_id", frame_id);
-	nh.getParam("parent_frame_id", parent_frame_id);
+	//-----------------------------------------------------------------------------------------------------
 
+	nh.getParam("camera_frame_id", frame_id);					//Frame TF definitivo della camera di riferimento (RGB o Depth)
+	nh.getParam("parent_frame_id", parent_frame_id);			//Frame TF definitivo del punto di origine (map)
+
+	//-----------------------------------Listener e Broadcaster TF-----------------------------------------
 	static tf::TransformListener listener;
 	static tf::TransformBroadcaster br;
+	//-----------------------------------------------------------------------------------------------------
 
-	kalmanInitialization();
+	kalmanInitialization();					//Funzione di inizializzazione del filtro di Kalman
 
-	ros::Time lastDetected;
+	ros::Time lastDetected;					//Timestamp che contiene l'ultimo istante in cui ho visto lo scheletro principale prima di perderlo
 
-	while(nh.getParam("skeleton_to_track", skeleton_to_track) && nh.ok())
+	while(nh.getParam("skeleton_to_track", skeleton_to_track) && nh.ok())			//Ciclo principale
 	{
-		ros::spinOnce();
-		updateParent();
+		ros::spinOnce();					//Aggiorno ROS e chiamo le callback
+		updateParent();						//Aggiorno la posizione della camera relativa all'origine, serve per poter calcolare le coordinate degli scheletri in maniera globale
 
-		ros::Time now = ros::Time::now();
+		ros::Time now = ros::Time::now();	//Timestamp di questo istante
 
+		//---------------------------Aggiorno il dT (delta T) dall'ultima iterazione del ciclo, serve per il filtro di Kalman----------------------
 		double precTick = ticks;
-
 		ticks = (double)cv::getTickCount();
-
 		dT = (ticks - precTick) / cv::getTickFrequency();
+		//-----------------------------------------------------------------------------------------------------------------------------------------
 
-		g_Context.WaitAndUpdateAll();
+		g_Context.WaitAndUpdateAll();		//Funzione di aggiornamento di OpenNI e NiTE, ferma il ciclo e chiama le callback necessarie
 
 		if(skeleton_to_track == 0)
 		{
-			//Searching phase. Keep tracking and publishing transforms of all users in the field of view of the sensor. Nothing else to do in this phase.
-
-			publishAllTransforms();
+			publishAllTransforms();			//Sono ancora in fase di associazione con riconoscimento facciale, pubblico le coordinate di testa e torso di tutti gli utenti visibili
 		}
 		else if(skeleton_to_track > 0)
 		{
-			//Tracking phase. I have my user to track, i need to apply the Kalman filter to its torso.
+			//Fase di tracking dell'utente corretto
 
-			publishAllTransforms();
+			tf::Transform torso_local, torso_global, head_local, head_global;			//TF testa e torso, rispetto alla camera (local) e rispetto alla mappa (global)
 
-			tf::Transform torso_local, torso_global, head_local, head_global;
-
-			if(calcUserTransforms(skeleton_to_track, torso_local, torso_global, head_local, head_global))
+			if(calcUserTransforms(skeleton_to_track, torso_local, torso_global, head_local, head_global))				//Controllo di validità del tracking
 			{
-				publishUserTransforms(skeleton_to_track, torso_local, torso_global, head_local, head_global, now);
+				publishUserTransforms(skeleton_to_track, torso_local, torso_global, head_local, head_global, now);		//Se il tracking è valido pubblico le coordinate
 
 				if(!detected)
 				{
-					calcUserHistogram(skeleton_to_track, userHistogram, false, it);
+					calcUserHistogram(skeleton_to_track, userHistogram, false, it);		//Calcolo istogramma utente, senza accumularlo
 				}
 				else
 				{
-					calcUserHistogram(skeleton_to_track, userHistogram, true, it);
+					calcUserHistogram(skeleton_to_track, userHistogram, true, it);		//Calcolo istogramma utente, accumulando ai precedenti valori
 				}
 
-				kalmanUpdate(torso_global);
+				kalmanUpdate(torso_global);												//Aggiornamento filtro di Kalman
 
-				lastDetected = now;
+				lastDetected = now;														//Aggiorno il timestamp relativo all'ultimo istante di tracking
 			}
-			else
+			else																		//Tracking non valido, perdo l'utente e passo alla riassociazione con Kalman
 			{
 				if(detected)
 				{
+					//Perso il tracking imposto lo skeleton_to_track a -1, per indicare al dynamyxel_mediator che deve cercare torso_k
 					skeleton_to_track = -1;
 					ros::param::set("skeleton_to_track", skeleton_to_track);
 				}
@@ -268,10 +272,12 @@ int main(int argc, char **argv)
 				}
 			}
 
-			predictAndPublish();
+			predictAndPublish();				//Predico e pubblico Kalman
 		}
 		else if(skeleton_to_track == -1)
 		{
+			//Fase di riassociazione rapida con Kalman e correlazione tra istogrammi
+
 			XnUInt16 users_count = MAX_USERS;
 			XnUserID users[MAX_USERS];
 
@@ -280,6 +286,8 @@ int main(int argc, char **argv)
 			int closer = 0;
 			double maxCorrelation = 0;
 			tf::Transform torso_new;
+
+			//Il ciclo seguente controlla se uno tra gli utenti visibili rispetta le condizioni di riassociazione rapida
 
 			for(int i = 0; i < users_count; ++i)
 			{
@@ -291,6 +299,7 @@ int main(int argc, char **argv)
 				{
 					publishUserTransforms(user, torso_local, torso_global, head_local, head_global, now);
 
+					//Calcolo la distanza tra l'utente user e la stima del filtro di Kalman
 					double distance = std::sqrt(std::pow(torso_global.getOrigin().getX() - state.at<float>(0), 2) + std::pow(torso_global.getOrigin().getY() - state.at<float>(1), 2));
 
 					if(distance < distances[user])
@@ -299,11 +308,12 @@ int main(int argc, char **argv)
 
 						ROS_INFO("Distance user %d: %f", user, distance);
 
+						//Controllo se l'utente dista meno di un metro (usando solo coordinate X e Y, Z è trascurata)
 						if(distances[user] <= DISTANCE_THRESHOLD)
 						{
 							cv::Mat histogram;
 
-							calcUserHistogram(user, histogram, false, it);
+							calcUserHistogram(user, histogram, false, it);		//Calcolo istogramma utente user, per confrontarlo con quello dell'utente corretto
 
 							double currentCorrelation = histogramComparison(histogram);
 
@@ -313,7 +323,7 @@ int main(int argc, char **argv)
 							{
 								maxCorrelation = currentCorrelation;
 
-								closer = user;
+								closer = user;				//Closer rappresenta l'utente più probabile per la riassociazione rapida
 
 								torso_new = torso_global;
 							}
