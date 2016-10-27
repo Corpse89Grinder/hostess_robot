@@ -24,7 +24,7 @@ std::string frame_id;							//Il frame TF relativo alla camera, viene letto medi
 std::string parent_frame_id("map");				//Il frame TF base dello spazio in cui opera il robot
 int skeleton_to_track = 0;						//skeleton_to_track rappresenta l'ID dello scheletro dell'utente che sto trackando, viene utilizzato come rosparam per sincronizzarsi con il nodo mediatore di velocità e gestore della camera
 
-//---------------------Variabili e callback OpenNI e NiTE---------------------------
+//-------------------------Variabili e callback OpenNI e NiTE------------------------------
 xn::Context				g_Context;
 xn::DepthGenerator		g_DepthGenerator;
 xn::UserGenerator		g_UserGenerator;
@@ -62,7 +62,7 @@ cv::Mat userHistogram;
 tf::StampedTransform parentTransform;
 bool updateParent();
 
-//--------------Inizializzazione e metodi filtro di Kalman-----------------
+//--------------Inizializzazione e funzioni filtro di Kalman-----------------
 const int stateSize = 6;
 const int measSize = 3;
 const int contrSize = 0;
@@ -82,7 +82,7 @@ void kalmanInitialization();
 void predictAndPublish();
 void kalmanPrediction();
 void kalmanUpdate(tf::Transform);
-//-------------------------------------------------------------------------
+//--------------------------------------------------------------------------
 
 int notFoundCount = 0;
 bool detected = false;
@@ -308,7 +308,7 @@ int main(int argc, char **argv)
 
 						ROS_INFO("Distance user %d: %f", user, distance);
 
-						//Controllo se l'utente dista meno di un metro (usando solo coordinate X e Y, Z è trascurata)
+						//Controllo se l'utente dista meno di un metro dalla stima (usando solo coordinate X e Y, Z è trascurata)
 						if(distances[user] <= DISTANCE_THRESHOLD)
 						{
 							cv::Mat histogram;
@@ -323,7 +323,7 @@ int main(int argc, char **argv)
 							{
 								maxCorrelation = currentCorrelation;
 
-								closer = user;				//Closer rappresenta l'utente più probabile per la riassociazione rapida
+								closer = user;									//Closer rappresenta l'utente più probabile per la riassociazione rapida
 
 								torso_new = torso_global;
 							}
@@ -332,18 +332,23 @@ int main(int argc, char **argv)
 				}
 			}
 
+			//Controllo se il valore di correlazione dell'utente più vicino supera la soglia minima imposta
 			if(maxCorrelation >= LIKENESS_THRESHOLD)
 			{
+				//Reimposto il numero dello scheletro corretto
 				skeleton_to_track = closer;
 				ros::param::set("skeleton_to_track", skeleton_to_track);
 
 				ROS_INFO("Re-associating user to skeleton %d, distance: %f, correlation: %f.", skeleton_to_track, distances[closer], maxCorrelation);
 
-				reassociations.push_back(std::pair<double, double>(distances[closer], maxCorrelation));
-
-				for(int i = 1; i <= MAX_USERS; ++i)
+				if(log_data)
 				{
-					distances[i] = std::numeric_limits<double>::max();
+					reassociations.push_back(std::pair<double, double>(distances[closer], maxCorrelation));
+
+					for(int i = 1; i <= MAX_USERS; ++i)
+					{
+						distances[i] = std::numeric_limits<double>::max();
+					}
 				}
 
 				detected = false;
@@ -357,6 +362,7 @@ int main(int argc, char **argv)
 				continue;
 			}
 
+			//Controllo se è scaduto il tempo per la riassociazione rapida e azzero nuovamente i parametri
 			if((now - lastDetected).sec >= KALMAN_TIMEOUT)
 			{
 				detected = false;
@@ -373,52 +379,57 @@ int main(int argc, char **argv)
 		}
 		else if(skeleton_to_track == -2)
 		{
-			//reinizializzazione
+			//Il valore -2 è utilizzato per il reset dell'algoritmo ad accompagnamento concluso (sia positivamente che negativamente)
 			detected = false;
 			ros::param::set("skeleton_to_track", 0);
 
-			std::ostringstream sstream;
-			std_msgs::String msg;
-
-			msg.data = "Reassociation distances:";
-
-			logger.publish(msg);
-
-			for(int i = 0; i < reassociations.size(); i++)
+			if(log_data)									//Log dei dati per la riassociazione
 			{
-				sstream << reassociations[i].first;
-				msg.data = sstream.str();
-				sstream.clear();
-				sstream.str(std::string());
+				std::ostringstream sstream;
+				std_msgs::String msg;
+
+				msg.data = "Reassociation distances:";
+
 				logger.publish(msg);
-			}
 
-			msg.data = "Reassociation correlations:";
+				for(int i = 0; i < reassociations.size(); i++)
+				{
+					sstream << reassociations[i].first;
+					msg.data = sstream.str();
+					sstream.clear();
+					sstream.str(std::string());
+					logger.publish(msg);
+				}
 
-			logger.publish(msg);
+				msg.data = "Reassociation correlations:";
 
-			for(int i = 0; i < reassociations.size(); i++)
-			{
-				sstream << reassociations[i].second;
-				msg.data = sstream.str();
-				sstream.clear();
-				sstream.str(std::string());
 				logger.publish(msg);
+
+				for(int i = 0; i < reassociations.size(); i++)
+				{
+					sstream << reassociations[i].second;
+					msg.data = sstream.str();
+					sstream.clear();
+					sstream.str(std::string());
+					logger.publish(msg);
+				}
+
+				reassociations.clear();
 			}
 
 			for(int i = 1; i <= MAX_USERS; ++i)
 			{
 				distances[i] = std::numeric_limits<double>::max();
 			}
-
-			reassociations.clear();
 		}
 
 		if(detected)
 		{
+			//Predico e pubblico le coordinate con il filtro di Kalman
 			predictAndPublish();
 		}
 
+		//Metto in pausa ros, affinché esegua i passi del ciclo ad una frequenza di 30Hz
 		ros::Rate(30).sleep();
 	}
 
@@ -426,6 +437,7 @@ int main(int argc, char **argv)
 	return EXIT_SUCCESS;
 }
 
+//----------------------------------------------Callbacks OpenNI-NiTE----------------------------------------------------------
 void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
 {
 	ROS_INFO("New User %d. Start tracking.", nId);
@@ -463,8 +475,9 @@ void XN_CALLBACK_TYPE User_OutOfScene(xn::UserGenerator& generator, XnUserID nId
 
 	g_UserGenerator.GetSkeletonCap().StopTracking(nId);
 }
+//-----------------------------------------------------------------------------------------------------------------------------
 
-//------------------------- Kalman Filter methods --------------------------
+//---------------------------------------------Funzioni del filtro di Kalman---------------------------------------------------
 
 void kalmanInitialization()
 {
@@ -575,7 +588,7 @@ void kalmanUpdate(tf::Transform transform)
 	}
 }
 
-//----------------------Transforms Methods--------------------------
+//--------------------------------------------Funzioni relative alle coordinate utente e alla libreria TF-----------------------------------------------
 
 void publishUserTransforms(int user, tf::Transform torso_local, tf::Transform torso_global, tf::Transform head_local, tf::Transform head_global, ros::Time now)
 {
@@ -624,7 +637,7 @@ void publishAllTransforms()
     }
 }
 
-bool checkCenterOfMass(XnUserID const& user)
+bool checkCenterOfMass(XnUserID const& user)									//Controllo la validità del centroide, aiuta a capire se ho perso il tracking
 {
 	XnPoint3D center_of_mass;
 	XnStatus status = g_UserGenerator.GetCoM(user, center_of_mass);
@@ -640,7 +653,7 @@ bool checkCenterOfMass(XnUserID const& user)
 }
 
 bool calcUserTransforms(XnUserID const& user, tf::Transform& torso_local, tf::Transform& torso_global, tf::Transform& head_local, tf::Transform& head_global)
-{
+{																				//Calcolo e pubblico le coordinate di testa e torso dell'utente user
 	XnSkeletonJointPosition torso_position, head_position;
 	XnSkeletonJointOrientation torso_orientation, head_orientation;
 
@@ -697,7 +710,7 @@ bool calcUserTransforms(XnUserID const& user, tf::Transform& torso_local, tf::Tr
 	return true;
 }
 
-bool updateParent()
+bool updateParent()								//Aggiorna ad ogni iterazione del ciclo principale le coordinate della camera rispetto al punto origine map
 {
 	static tf::TransformListener listener;
 
@@ -711,10 +724,10 @@ bool updateParent()
 		return false;
 	}
 }
+//------------------------------------------------------------------------------------------------------------------------------------------------------
 
-//-----------------------------Histogram Methods------------------------------------
-
-void updateHSVImage(const sensor_msgs::ImageConstPtr& msg)
+//----------------------------------------Funzioni di calcolo e comparazione dell'istogramma dei colori-------------------------------------------------
+void updateHSVImage(const sensor_msgs::ImageConstPtr& msg)								//Aggiorno ad ogni iterazione l'immagine HSV a partire da quella RGB
 {
 	cv::Mat image;
 
@@ -740,9 +753,9 @@ void updateHSVImage(const sensor_msgs::ImageConstPtr& msg)
 	}
 }
 
-void calcUserHistogram(int user, cv::Mat& histogram, bool accumulate, image_transport::ImageTransport& it)
-{
-	xn::SceneMetaData smd;
+void calcUserHistogram(int user, cv::Mat& histogram, bool accumulate, image_transport::ImageTransport& it)		//Calcolo l'istogramma dell'utente user e
+{																												//pubblico l'immagine della sagoma dell'utente
+	xn::SceneMetaData smd;																						//in un topic apposito
 	xn::DepthMetaData dmd;
 
 	g_DepthGenerator.GetMetaData(dmd);
@@ -791,7 +804,8 @@ void calcUserHistogram(int user, cv::Mat& histogram, bool accumulate, image_tran
 	image_publishers[user].publish(msg);
 }
 
-double histogramComparison(cv::Mat histogram)
+double histogramComparison(cv::Mat histogram)					//Comparazione tra istogrammi
 {
 	return cv::compareHist(userHistogram, histogram, CV_COMP_CORREL);
 }
+//------------------------------------------------------------------------------------------------------------------------------------------------------
