@@ -78,17 +78,15 @@ cv::Point oldPosition;
 double ticks = 0;
 double dT;
 
+int notFoundCount = 0;
+
 void kalmanInitialization();
 void predictAndPublish();
 void kalmanPrediction();
 void kalmanUpdate(tf::Transform);
 //--------------------------------------------------------------------------
 
-int notFoundCount = 0;
 bool detected = false;
-bool isTracking = false;
-
-ros::Time lastStamp;
 
 std::vector<std::pair<double, double> > reassociations;
 
