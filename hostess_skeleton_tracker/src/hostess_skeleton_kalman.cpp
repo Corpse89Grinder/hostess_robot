@@ -213,6 +213,9 @@ int main(int argc, char **argv)
 
 	ros::Time lastDetected;					//Timestamp che contiene l'ultimo istante in cui ho visto lo scheletro principale prima di perderlo
 
+	bool log_data = false;
+	ros::param::get("log_data", log_data);
+
 	while(nh.getParam("skeleton_to_track", skeleton_to_track) && nh.ok())			//Ciclo principale
 	{
 		ros::spinOnce();					//Aggiorno ROS e chiamo le callback
@@ -585,6 +588,7 @@ void kalmanUpdate(tf::Transform transform)
 		kf2.correct(meas2);
 	}
 }
+//------------------------------------------------------------------------------------------------------------------------------------------------------
 
 //--------------------------------------------Funzioni relative alle coordinate utente e alla libreria TF-----------------------------------------------
 

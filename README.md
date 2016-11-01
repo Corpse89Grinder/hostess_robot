@@ -1,2 +1,7 @@
-# hostess_robot
-ROS metapackage containing a OpenNI-derived skeleton tracker, with separate launch files to run the xtion/kinect device and skeleton tracker on a robot and perform point cloud reconstruction (and later on face recognition) on a remote workstation.
+#Hostess Robot
+
+Metapackage ROS contenente i pacchetti necessari per il funzionamento del robot hostess. All'interno si trovano:
+- un fork del progetto cob_people_detection [http://wiki.ros.org/cob_people_detection](cob_people_detection), utilizzato per effettuare il riconoscimento facciale
+- un pacchetto chiamato hostess_full, che contiene soltanto i file .launch per avviare il robot e i file di visualizzazione mediante rviz
+- un pacchetto chiamato hostess_skeleton_tracker, che contiene lo skeleton tracker di OpenNI/NiTE, il controllore del motorino del pan, e il nodo che effettua associazioni tra volti e scheletri e media la veocità del robot in funzione della distanza dell'utente
+- un pacchetto chiamato hostess_user_registration, che permette di avviare sul robot un piccolo webserver per poter aggiungere e rimuovere destinazioni e utenti, e di effettuare il login per poter utilizzare il robot

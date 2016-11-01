@@ -41,6 +41,8 @@ ros::Publisher pub, cancel, logger;
 
 std::deque<double> speed(MAX_MEAN, 0);
 
+bool log_data = false;
+
 int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "dynamixel_mediator");
@@ -50,6 +52,8 @@ int main(int argc, char** argv)
 	std::string frame_id;
 
 	ros::param::set("skeleton_to_track", skeleton_to_track);
+
+	ros::param::get("log_data", log_data);
 
 	std::string direction = "still";
 
@@ -73,12 +77,18 @@ int main(int argc, char** argv)
     ros::Subscriber goalSubscriber = nh.subscribe("/move_base/status", 1, goalCallback);
 
     cancel = nh.advertise<actionlib_msgs::GoalID>("/move_base/cancel", 1);
-    logger = nh.advertise<std_msgs::String>("logger", 10);
+
+    if(log_data)
+    {
+    	logger = nh.advertise<std_msgs::String>("logger", 10);
+    }
 
     tf::TransformListener listener;
     tf::TransformBroadcaster broadcaster;
 
     double ratio = 0;
+
+    std_msgs::String msg;
 
 	while(nh.ok())
 	{
@@ -103,25 +113,26 @@ int main(int argc, char** argv)
 
 		ROS_INFO("Goal received.");
 
-		std_msgs::String msg;
+		if(log_data)
+		{
+			//Log identity, goal id and time
+			msg.data = "start";
+			logger.publish(msg);
 
-		//Log identity, goal id and time
-		msg.data = "start";
-		logger.publish(msg);
+			msg.data = user_to_track;
+			logger.publish(msg);
 
-		msg.data = user_to_track;
-		logger.publish(msg);
+			msg.data = current_goal_id;
+			logger.publish(msg);
 
-		msg.data = current_goal_id;
-		logger.publish(msg);
+			std::ostringstream sstream;
 
-		std::ostringstream sstream;
+			sstream << goals_status[current_goal_id].first.sec << "." << goals_status[current_goal_id].first.nsec;
+			msg.data = sstream.str();
+			logger.publish(msg);
 
-		sstream << goals_status[current_goal_id].first.sec << "." << goals_status[current_goal_id].first.nsec;
-		msg.data = sstream.str();
-		logger.publish(msg);
-
-		association_distances.clear();
+			association_distances.clear();
+		}
 
 		while(goals_status[current_goal_id].second != 3 && nh.ok())
 		{
@@ -255,24 +266,32 @@ int main(int argc, char** argv)
 		{
 			ROS_INFO("Goal reached correctly, restarting.");
 
-			msg.data = "Association distances:";
-			logger.publish(msg);
-
-			for(int i = 0; i < association_distances.size(); i++)
+			if(log_data)
 			{
-				sstream.clear();
-				sstream.str(std::string());
-				sstream << association_distances[i];
-				msg.data = sstream.str();
+				msg.data = "Association distances:";
 				logger.publish(msg);
+
+				std::ostringstream sstream;
+
+				for(int i = 0; i < association_distances.size(); i++)
+				{
+					sstream.clear();
+					sstream.str(std::string());
+					sstream << association_distances[i];
+					msg.data = sstream.str();
+					logger.publish(msg);
+				}
 			}
 
 			ratio = 0;
 
 			resetLoop();
 
-			msg.data = "succeeded";
-			logger.publish(msg);
+			if(log_data)
+			{
+				msg.data = "succeeded";
+				logger.publish(msg);
+			}
 		}
 
 		pan_controller.goHome();
@@ -353,7 +372,11 @@ bool findClosestHeadToFace(std::vector<tf::StampedTransform>& transforms, std::s
 			skeleton_to_track_frame = frame_to_track;
 			skeletons.clear();
 
-			association_distances.push_back(min);
+			if(log_data)
+			{
+				association_distances.push_back(min);
+			}
+
 			return true;
 		}
 	}
