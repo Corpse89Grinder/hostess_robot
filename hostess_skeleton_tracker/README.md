@@ -1,11 +1,4 @@
-#OpenNI Tracker
+#Skeleton tracker
 
-The OpenNI tracker broadcasts the OpenNI skeleton frames using tf.
-For more information checkout the ROS Wiki: http://ros.org/wiki/openni_tracker
-
-#NITE Information
-
-The NITE library must be manually installed for openni_tracker to function.  The two versions that are compatible with this package are 1.5.2.21 and 1.5.2.23.
-
-NITE v1.5.2.23 can currently be downloaded from [http://www.openni.ru/openni-sdk/openni-sdk-history-2/](http://www.openni.ru/openni-sdk/openni-sdk-history-2/)
+Un pacchetto ROS che permette di effettuare il tracking dello scheletro degli utenti e di muovere il robot in funzione della distanza da uno specifico utente. L'utente corretto viene scelto tramite il pacchetto [hostess_user_registration](hostess_user_registration) e viene individuato mediante riconoscimento facciale dal pacchetto [cob_people_detection](cob_people_detection). Il nodo [hostess_skeleton_kalman](hostess_skeleton_kalman) effettua il tracking dello scheletro, il nodo [dynamixel_mediator](dynamyxel_mediator) effettua l'associazione tra il volto corretto e lo scheletro, orienta la camera e media la velocità del robot. Il nodo che effettua il tracking dello scheletro ha bisogno della libreria NiTE per operare, in particolare della versione 1.5.2.21 o della versione 1.5.2.23, scaricabili da [questo link](http://www.openni.ru/openni-sdk/openni-sdk-history-2/)
 
