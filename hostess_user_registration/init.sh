@@ -14,6 +14,8 @@ from app import db
 db.create_all()
 EOF
 
+rm app.pyc
+
 cd ..
 
 echo "Database creato correttamente."
